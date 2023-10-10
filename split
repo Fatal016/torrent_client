@@ -1,0 +1,92 @@
+d
+	8:announce
+	40:udp://tracker.leechers-paradise.org:6969
+	
+	13:announce-list
+	l
+		l
+			40:udp://tracker.leechers-paradise.org:6969
+		e
+		l
+			34:udp://tracker.coppersurfer.tk:6969
+		e
+		l
+			33:udp://tracker.opentrackr.org:1337
+		e
+		l
+			23:udp://explodie.org:6969
+		e
+		l
+			31:udp://tracker.empire-js.us:1337
+		e
+		l
+			26:wss://tracker.btorrent.xyz
+		e
+		l
+			32:wss://tracker.openwebtorrent.com
+		e
+		l
+			25:wss://tracker.fastcast.nz
+		e
+	e
+
+	7:comment
+	34:WebTorrent <https://webtorrent.io>
+
+	10:created by
+	34:WebTorrent <https://webtorrent.io>
+
+	13:creation date
+	i1490916601e
+
+	8:encoding
+	5:UTF-8
+
+	4:info
+	d
+		5:files
+		l
+			d
+				6:length
+				i140e
+			
+				4:path
+				l
+					21:Big Buck Bunny.en.srt
+				e
+			e
+			d
+				6:length
+				i276134947e
+				
+				4:path
+				l
+					18:Big Buck Bunny.mp4
+				e
+			e
+			d
+				6:length
+				i310380e
+				
+				4:path
+				l
+					10:poster.jpg
+				e
+			e
+		e
+	
+		4:name
+		14:Big Buck Bunny
+	
+		12:piece length
+		i262144e
+	
+		6:pieces
+		21100:gibberish
+	e
+	
+	8:url-list
+	l
+		31:https://webtorrent.io/torrents/
+	e
+e
