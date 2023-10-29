@@ -4,18 +4,6 @@
 
 #include "./bencode_parser.h"
 
-#define FOREACH_STATE(STATE) \
-		STATE(announce)			\
-		STATE(announce_list)	\
-		STATE(comment)			\
-		STATE(created_by)		\
-		STATE(creation_date)	\
-		STATE(bencode_info)		\
-		STATE(url_list)			\
-
-#define GENERATE_ENUM(ENUM) ENUM,
-#define GENERATE_STRING(STRING) #STRING,
-
 int main() {
 	enum PARSE_ENUM { FOREACH_STATE(GENERATE_ENUM) };
 	static const char *PARSE_STATE[] = { FOREACH_STATE(GENERATE_STRING) };
@@ -23,6 +11,7 @@ int main() {
 	struct bencode_module bencode;
 	enum PARSE_ENUM state = announce;
 
+	int charIterator;
 	char id;
 	char readBuffer[128];
 	char readBufferIndex;
@@ -53,26 +42,25 @@ int main() {
 		}
 		break;
 	}
-//	printf("Buffer Length: %d\n", readBufferIndex);
 	
-	stringLength = atoi(readBuffer);
-//	printf("String Length: %d\n", stringLength);
-	
-	memset(readBuffer, 0, sizeof(readBuffer));
-	for (int i = 0; i < stringLength; i++) {
-		readBuffer[i] = fgetc(file);
-	}
-
+	pstr(readBuffer, readBufferIndex, stringLength, file);
 	printf("%s\n", readBuffer);
 
-	if (strcmp(readBuffer, PARSE_STATE[state]) == 0) {
-		
+	if (strcmp(readBuffer, PARSE_STATE[state]) == 0) {		
 		bencode.announce = readBuffer;
 		printf("Length of announce: %ld\n", (sizeof(bencode.announce) / sizeof(char)));
-		//printf("Found announcement\n");
-//	} else if (strcmp(readBuffer, ))
+	} else {
+		state++;
 	}
 	fclose(file);
 	exit(0);
 }
 
+/* (p)arse (str)ing */
+void pstr(char* readBuffer, int readBufferIndex, int stringLength, FILE* file) {
+    stringLength = atoi(readBuffer);
+	memset(readBuffer, 0, sizeof(readBuffer));
+    for (readBufferIndex = 0; readBufferIndex < stringLength; readBufferIndex++) {
+	    readBuffer[readBufferIndex] = fgetc(file);
+    }
+}
