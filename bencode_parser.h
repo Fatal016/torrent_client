@@ -10,6 +10,7 @@
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
+
 enum PARSE_ENUM { FOREACH_STATE(GENERATE_ENUM) };
 
 struct info_file {
@@ -35,5 +36,7 @@ struct bencode_module {
 	char** url_list;
 };
 
+typedef int (*BlockID)(char, char*, int, enum PARSE_ENUM, const char**, int, struct bencode_module, FILE*);
+
 int pstr(char* readBuffer, int readBufferIndex, int stringLength, FILE* file);
-int pdict(char charIn, char* readBuffer, int readBufferIndex, enum PARSE_ENUM state, const char *parse_state[], int stringLength, struct bencode_module bencode, FILE* file);
+int pdict(char, char*, int, enum PARSE_ENUM, const char**, int, struct bencode_module, FILE*);

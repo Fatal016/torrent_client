@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "./bencode_parser.h"
 
 int main() {
+
 	struct bencode_module bencode;
 	
 	enum PARSE_ENUM state = announce;
@@ -17,6 +19,7 @@ int main() {
 	
 	int stringLength;
 	int result;
+
 
 	/* Accessing .torrent file in read-only mode */	
 	FILE *file = fopen("test.torrent", "r");
@@ -47,6 +50,11 @@ int main() {
 	return 0;
 }
 
+void plist() {
+	printf("into list");
+}
+
+
 /* (p)arse (str)ing */
 int pstr(char* readBuffer, int readBufferIndex, int stringLength, FILE* file) {
     stringLength = atoi(readBuffer); // Converting parsed data-segment length into int
@@ -56,12 +64,28 @@ int pstr(char* readBuffer, int readBufferIndex, int stringLength, FILE* file) {
     }
 }
 
+BlockID ID(char charIn) {
+	switch (charIn) {
+		case 'd':
+			return pdict;
+			break;
+		default:
+			return NULL;
+			break;
+	}
+}
+
+
 /* Bencode dictionary parser */
 int pdict(char charIn, char* readBuffer, int readBufferIndex, enum PARSE_ENUM state, const char *parse_state[], int stringLength, struct bencode_module bencode, FILE* file) {
+	BlockID idresult;
 	while (charIn != EOF) {
 		for (readBufferIndex = 0; readBufferIndex < sizeof(readBuffer) / sizeof(char); readBufferIndex++) {
 			charIn = fgetc(file);
+			idresult = ID(charIn);
 
+			if (idresult != NULL) idresult(charIn, readBuffer, readBufferIndex, state, parse_state, stringLength, bencode, file);
+			printf("Past function!\n");
 
 			if (charIn != 58) { // Colon is delimiter for separation between data-type and data
 				readBuffer[readBufferIndex] = charIn;
@@ -71,12 +95,13 @@ int pdict(char charIn, char* readBuffer, int readBufferIndex, enum PARSE_ENUM st
 		}
 		pstr(readBuffer, readBufferIndex, stringLength, file);
 		printf("%s\n", readBuffer);	
+		exit(1);
 		
 		if (strcmp(readBuffer, parse_state[state]) == 0) {		
 			bencode.announce = readBuffer;
-			printf("Length of announce: %ld\n", (sizeof(bencode.announce) / sizeof(char)));
 		} else {
 			state++;
+			printf("%s\n", parse_state[state]);
 		}
 	}
 }
