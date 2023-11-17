@@ -36,7 +36,8 @@ struct bencode_module {
 	char** url_list;
 };
 
-typedef int (*BlockID)(char, char*, int, enum PARSE_ENUM, const char**, int, struct bencode_module, FILE*);
+typedef int (*BlockID)(char, char*, size_t, int, enum PARSE_ENUM, const char**, int, struct bencode_module, FILE*);
 
-int pstr(char* readBuffer, int readBufferIndex, int stringLength, FILE* file);
-int pdict(char, char*, int, enum PARSE_ENUM, const char**, int, struct bencode_module, FILE*);
+int pstr(char*, size_t*, FILE*);
+int plist(char, char*, size_t, int, enum PARSE_ENUM, const char**, int, struct bencode_module, FILE*);
+int pdict(char, char*, size_t, int, enum PARSE_ENUM, const char**, int, struct bencode_module, FILE*);
