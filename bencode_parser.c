@@ -9,16 +9,24 @@ int main() {
 
 	struct bencode_module bencode;
 	
-	enum PARSE_ENUM state = announce;
-	static const char *parse_state[] = { FOREACH_STATE(GENERATE_STRING) };
+	//enum PARSE_ENUM state = announce;
+	int state_index = 0;
+//static const char *parse_state[] = { FOREACH_STATE(GENERATE_STRING) };
 
-	int charIterator;
 	char charIn;
 	char readBuffer[128];
 	char readBufferIndex;
 	
 	int stringLength;
 	int result;
+
+
+/*
+	for (int i = 0; i < sizeof(state) / sizeof(char); i++) {
+		printf("State: %s\n", state[i]);
+	}
+*/
+
 
 	/* Accessing .torrent file in read-only mode */	
 	FILE *file = fopen("test.torrent", "r");
@@ -38,8 +46,10 @@ int main() {
 		return -1;
 	}
 
+	size_t bufferLength = sizeof(readBuffer);
+
 	/* Beginning root dictionary parse */
-	result = pdict(charIn, readBuffer, sizeof(readBuffer), readBufferIndex, state, parse_state, stringLength, bencode, file);
+	result = pdict(readBuffer, &bufferLength, state, &state_index, &bencode, file);
 	
 	/* Error handling for root dictionary parse */
 	if (result < 0) {
@@ -48,6 +58,7 @@ int main() {
 	}
 
 	fclose(file);
+	printf("Closing");
 	exit(0);
 }
 
@@ -66,6 +77,11 @@ BlockID ID(char charIn) {
 	}
 }
 
+
+
+
+
+
 /* (p)arse (str)ing */
 int pstr(char* readBuffer, size_t* sizeof_buffer, FILE* file) {
 
@@ -83,69 +99,95 @@ int pstr(char* readBuffer, size_t* sizeof_buffer, FILE* file) {
 
 }
 
-int plist(char charIn, char* readBuffer, size_t sizeof_buffer, int readBufferIndex, enum PARSE_ENUM state, const char *parse_state[], int stringLength, struct bencode_module bencode, FILE* file) {
-	printf("In parse list!\n");
+int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE* file) {
+	
+	BlockID idresult;
+
+	int charIn;
+
+	int result;
+
+	// All checking for start of new struct, can probably make this into a better method
+
+	
+	for (int readBufferIndex = 0; readBufferIndex < *sizeof_buffer / sizeof(char); readBufferIndex++) {	
+	
+		charIn = fgetc(file);
+
+		idresult = ID(charIn);
+		//printf("Inside List: %c\n", charIn);
+			
+		if (idresult != NULL) {
+		//	printf("Non null ID result inside list!\n");
+			
+			result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file);
+		} else if (charIn != 58) {
+			readBuffer[readBufferIndex] = charIn;
+		} else {
+			pstr(readBuffer, sizeof_buffer, file);
+		}
+	}
+
+	//printf("In parse list!\n");
 	exit(0);
 }
 
 /* (p)arse (dict)ionary */
-int pdict(char charIn, char* readBuffer, size_t sizeof_buffer, int readBufferIndex, enum PARSE_ENUM state, const char *parse_state[], int stringLength, struct bencode_module bencode, FILE* file) {
-
+int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE *file) {
 
 	BlockID idresult;
 	
 	int result;
+	int stringLength;
 
+	char charIn;
+	
 	int write = 0;
 
 	/* Iterates until the entire file is parsed */
 	while (charIn != EOF) {
-		printf("back into while\n");
-		memset(readBuffer, 0, sizeof_buffer);
-
+		memset(readBuffer, 0, *sizeof_buffer);
 
 		/* Iterates character by character, upper bound of this loop is of arbitrary length and may need to be increased or made dynamic */
-		for (readBufferIndex = 0; readBufferIndex < sizeof_buffer / sizeof(char); readBufferIndex++) {
+		for (int readBufferIndex = 0; readBufferIndex < *sizeof_buffer / sizeof(char); readBufferIndex++) {
 			
 			/* Reading in character from file */
 			charIn = fgetc(file);
-			//printf("Char in %c\n", charIn);
 
 			/* Running ID method to determine whether or not the character read is the start of a Bencode data type */
 			idresult = ID(charIn);
 
 			/* If the starting character of a data type was detected */
 			if (idresult != NULL) {
-				printf("Non null ID result!\n");
+			//	printf("Non null ID result!\n");
 
 				/* Executing the method pointed to by the return of ID */
-				result = idresult(charIn, readBuffer, sizeof_buffer, readBufferIndex, state, parse_state, stringLength, bencode, file);
+				result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file);
 				
-				
-				printf("Past Function: Return %d\n", result);
 			} else if (charIn != 58) {	// If still reading in length of datablock
 				readBuffer[readBufferIndex] = charIn;
 			} else {
-				printf("Parsing String: %s\n", readBuffer);
-				pstr(readBuffer, &sizeof_buffer, file);
-				printf("ReadBuffer: %s\n", readBuffer);	
-		
-				if (strcmp(readBuffer, parse_state[state]) == 0) {		
-					write = 1;
-				} else {
-					if (write == 1) {
-						bencode.announce = readBuffer;
-						printf("Set announce: %s\n", bencode.announce);
-					} else {
-						state++;
-						printf("New State: %s\n", parse_state[state]);
-					}
+				pstr(readBuffer, sizeof_buffer, file);
+	
+				printf("Buffer: %s Looking for: %s\n", readBuffer, state[*state_index]);	
+				if (strcmp(readBuffer, state[*state_index]) == 0) {		
 					write = 0;
+					*(state_index) = *(state_index) + 1;
+					
+					printf("New state: %s Index: %d\n", state[*state_index], *state_index);
 				}
+				if (write == 1) {
+					printf("Writing\n");
+					bencode->announce = readBuffer;
+					printBencode(bencode);
+				//	printf("Set announce: %s\n", bencode->announce);
+				}
+				write = 1;
 				break;
 			}
 		}
-		//printf("Done one!\n");
-		//printf("Bencode Module %s\n", bencode.announce);
 	}
+	
+	return 0;
+
 }
