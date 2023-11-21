@@ -26,6 +26,7 @@ struct bencode_info {
 	char* pieces;
 };
 
+// Pointers to arrays are fixed length so this works with heap
 struct bencode_module {
 	char* announce;
 	char** announce_list;
@@ -46,5 +47,5 @@ int pdict(char*, size_t*, const char**, int*, struct bencode_module*, FILE*);
 /* Tools */
 void printBencode(struct bencode_module *bencode) {
 	printf("Announce: %s\n", bencode->announce);
-	printf("Announce-List: %s\n", bencode->announce_list[0]);
+	//printf("Announce-List: %s\n", bencode->announce_list[0]);
 }

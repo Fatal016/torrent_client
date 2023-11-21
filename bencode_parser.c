@@ -5,6 +5,8 @@
 
 #include "./bencode_parser.h"
 
+int arrPointer = 0;
+
 int main() {
 
 	struct bencode_module bencode;
@@ -100,12 +102,19 @@ int pstr(char* readBuffer, size_t* sizeof_buffer, FILE* file) {
 }
 
 int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE* file) {
-	
+/*
+	if (bencode->announce_list == NULL) {
+		;
+	}
+*/
+
 	BlockID idresult;
 
 	int charIn;
-
+	int iterator = 0;
 	int result;
+
+	char** resize;
 
 	// All checking for start of new struct, can probably make this into a better method
 
@@ -115,19 +124,33 @@ int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 		charIn = fgetc(file);
 
 		idresult = ID(charIn);
-		//printf("Inside List: %c\n", charIn);
 			
 		if (idresult != NULL) {
-		//	printf("Non null ID result inside list!\n");
 			
 			result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file);
 		} else if (charIn != 58) {
 			readBuffer[readBufferIndex] = charIn;
 		} else {
 			pstr(readBuffer, sizeof_buffer, file);
+			if (bencode->announce_list == NULL) {
+				printf("Sizeof before %ld\n", sizeof(bencode->announce_list));
+				//printf("Val before: %s\n", *bencode->announce_list);
+				bencode->announce_list = (char**)malloc(sizeof(char*));
+				printf("Val after: %s\n", *bencode->announce_list);
+				printf("Sizeof after: %ld\n", sizeof(bencode->announce_list));
+				if (bencode->announce_list == NULL) {
+					printf("Failed!\n");
+					exit(-1);
+				}					
+			} else {
+		//		resize = (char**)realloc(bencode->announce_list, sizeof(char));
+			}
+
+			bencode->announce_list[arrPointer] = (char*)malloc((int)*sizeof_buffer * sizeof(char));
+			bencode->announce_list[arrPointer] = readBuffer;
+			printf("New VAL! it: %d %s\n", iterator, bencode->announce_list[arrPointer++]);
 		}
 	}
-
 	//printf("In parse list!\n");
 	exit(0);
 }
@@ -159,7 +182,7 @@ int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 
 			/* If the starting character of a data type was detected */
 			if (idresult != NULL) {
-			//	printf("Non null ID result!\n");
+				printf("Non null ID result!\n");
 
 				/* Executing the method pointed to by the return of ID */
 				result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file);
