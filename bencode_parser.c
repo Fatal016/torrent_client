@@ -5,8 +5,6 @@
 
 #include "./bencode_parser.h"
 
-int arrPointer = 0;
-
 int main() {
 
 	struct bencode_module bencode;
@@ -21,7 +19,7 @@ int main() {
 	
 	int stringLength;
 	int result;
-
+	int iterator = 0;
 
 /*
 	for (int i = 0; i < sizeof(state) / sizeof(char); i++) {
@@ -51,7 +49,7 @@ int main() {
 	size_t bufferLength = sizeof(readBuffer);
 
 	/* Beginning root dictionary parse */
-	result = pdict(readBuffer, &bufferLength, state, &state_index, &bencode, file);
+	result = pdict(readBuffer, &bufferLength, state, &state_index, &bencode, file, &iterator);
 	
 	/* Error handling for root dictionary parse */
 	if (result < 0) {
@@ -101,12 +99,7 @@ int pstr(char* readBuffer, size_t* sizeof_buffer, FILE* file) {
 
 }
 
-int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE* file) {
-/*
-	if (bencode->announce_list == NULL) {
-		;
-	}
-*/
+int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE* file, int *index) {
 
 	BlockID idresult;
 
@@ -127,17 +120,18 @@ int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 			
 		if (idresult != NULL) {
 			
-			result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file);
+			result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file, index);
 		} else if (charIn != 58) {
 			readBuffer[readBufferIndex] = charIn;
 		} else {
 			pstr(readBuffer, sizeof_buffer, file);
+			printf("REAL BUFFER: %s\n", *readBuffer);
 			if (bencode->announce_list == NULL) {
-				printf("Sizeof before %ld\n", sizeof(bencode->announce_list));
+			//	printf("Sizeof before %ld\n", sizeof(bencode->announce_list));
 				//printf("Val before: %s\n", *bencode->announce_list);
 				bencode->announce_list = (char**)malloc(sizeof(char*));
-				printf("Val after: %s\n", *bencode->announce_list);
-				printf("Sizeof after: %ld\n", sizeof(bencode->announce_list));
+			//	printf("Val after: %s\n", *bencode->announce_list);
+			//	printf("Sizeof after: %ld\n", sizeof(bencode->announce_list));
 				if (bencode->announce_list == NULL) {
 					printf("Failed!\n");
 					exit(-1);
@@ -146,9 +140,15 @@ int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 		//		resize = (char**)realloc(bencode->announce_list, sizeof(char));
 			}
 
-			bencode->announce_list[arrPointer] = (char*)malloc((int)*sizeof_buffer * sizeof(char));
-			bencode->announce_list[arrPointer] = readBuffer;
-			printf("New VAL! it: %d %s\n", iterator, bencode->announce_list[arrPointer++]);
+			bencode->announce_list[*index] = (char*)malloc((int)*sizeof_buffer * sizeof(char));
+			bencode->announce_list[*index] = readBuffer;
+			//printf("Read Buffer: %s\n", *readBuffer);
+			
+			for (int i = 0; i < *index; i++) {
+				printf("Announce-List: %d %s\n", i, bencode->announce_list[i]);
+			}
+			//printf("New VAL! it: %d %s\n", *index, bencode->announce_list[(*index)]);
+			(*index)++;
 		}
 	}
 	//printf("In parse list!\n");
@@ -156,7 +156,7 @@ int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 }
 
 /* (p)arse (dict)ionary */
-int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE *file) {
+int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE *file, int *index) {
 
 	BlockID idresult;
 	
@@ -185,7 +185,7 @@ int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 				printf("Non null ID result!\n");
 
 				/* Executing the method pointed to by the return of ID */
-				result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file);
+				result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file, index);
 				
 			} else if (charIn != 58) {	// If still reading in length of datablock
 				readBuffer[readBufferIndex] = charIn;
@@ -202,7 +202,7 @@ int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 				if (write == 1) {
 					printf("Writing\n");
 					bencode->announce = readBuffer;
-					printBencode(bencode);
+					printBencode(bencode, index);
 				//	printf("Set announce: %s\n", bencode->announce);
 				}
 				write = 1;

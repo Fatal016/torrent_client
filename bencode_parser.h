@@ -38,14 +38,16 @@ struct bencode_module {
 	char** url_list;
 };
 
-typedef int (*BlockID)(char*, size_t*, const char**, int*, struct bencode_module*, FILE*);
+typedef int (*BlockID)(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
 
 int pstr(char*, size_t*, FILE*);
-int plist(char*, size_t*, const char**, int*, struct bencode_module*, FILE*);
-int pdict(char*, size_t*, const char**, int*, struct bencode_module*, FILE*);
+int plist(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
+int pdict(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
 
 /* Tools */
-void printBencode(struct bencode_module *bencode) {
+void printBencode(struct bencode_module *bencode, int *index) {
 	printf("Announce: %s\n", bencode->announce);
-	//printf("Announce-List: %s\n", bencode->announce_list[0]);
+	for (int i = 0; i < *index; i++) {
+		printf("Announce-List: %s\n", bencode->announce_list[i]);
+	}
 }
