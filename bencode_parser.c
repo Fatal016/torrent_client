@@ -111,7 +111,7 @@ int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 
 	// All checking for start of new struct, can probably make this into a better method
 
-	
+	printf("Into list!");	
 	for (int readBufferIndex = 0; readBufferIndex < *sizeof_buffer / sizeof(char); readBufferIndex++) {	
 	
 		charIn = fgetc(file);
