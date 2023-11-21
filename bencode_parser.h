@@ -43,6 +43,7 @@ typedef int (*BlockID)(char*, size_t*, const char**, int*, struct bencode_module
 int pstr(char*, size_t*, FILE*);
 int plist(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
 int pdict(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
+int end(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
 
 /* Tools */
 void printBencode(struct bencode_module *bencode, int *index) {
