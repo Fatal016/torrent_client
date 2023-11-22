@@ -20,13 +20,15 @@ int main() {
 	char charIn;
 	char readBuffer[128];
 	char readBufferIndex;
+
+	int filePointer = 0;
 	
 	int stringLength;
 	int result;
 	int iterator = 0;
 
 	/* Accessing .torrent file in read-only mode */	
-	FILE *file = fopen("test.torrent", "r");
+	FILE *file = fopen("edge.torrent", "r");
 
 	/* Error checking for if the file exists */
 	if (file == NULL) {
@@ -44,9 +46,10 @@ int main() {
 	}
 
 	size_t bufferLength = sizeof(readBuffer);
+	filePointer = ftell(file);
 
 	/* Beginning root dictionary parse */
-	result = pdict(readBuffer, &bufferLength, state, &state_index, &bencode, file, &iterator);
+	result = pdict(readBuffer, &bufferLength, state, &state_index, &bencode, file, &iterator, &filePointer);
 	
 	/* Error handling for root dictionary parse */
 	if (result < 0) {
@@ -99,11 +102,14 @@ int pstr(char* readBuffer, size_t* sizeof_buffer, FILE* file) {
 
 }
 
-int end(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE* file, int *index) {
+int end(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE* file, int *index, int *filePointer) {
 	return 1;
 }
 
-int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE* file, int *index) {
+int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE* file, int *index, int *filePointer) {
+	fseek(file, *filePointer, SEEK_SET);
+	printf("Pointing at: %d\n", *filePointer);
+
 	printf("in list\n");
 	BlockID idresult;
 
@@ -113,6 +119,7 @@ int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 
 	char** resize;
 
+
 	for (int readBufferIndex = 0; readBufferIndex < *sizeof_buffer / sizeof(char); readBufferIndex++) {	
 	
 		charIn = fgetc(file);
@@ -120,12 +127,14 @@ int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 		idresult = ID(charIn);
 			
 		if (idresult != NULL) {
-			result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file, index);
+			*filePointer = ftell(file);
+			result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file, index, filePointer);
 			if (result == 1) {
 				printf("saw end\n");
+				printf("Pointer: %ld\n", ftell(file));
 				return 0;
 			} else {
-				fseek(file, 0, result);
+	//			fseek(file, 0, result);
 				if (charIn == 'd') {
 				//	printf("detected\n");	
 				char temp[100];
@@ -151,14 +160,19 @@ int plist(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 			for (int i = 0; i < *index; i++) {
 				printf("Announce-List: %d %s\n", i, bencode->announce_list[i]);
 			}
-			(*index)++;
+			++*index;
+			printf("Index iterating! %d\n", *index);
+
 		}
 	}
-	return ftell(file);
+	return 0;
 }
 
 /* (p)arse (dict)ionary */
-int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE *file, int *index) {
+int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *state_index, struct bencode_module *bencode, FILE *file, int *index, int *filePointer) {
+	fseek(file, *filePointer, SEEK_SET);
+	printf("Pointing to %d\n", *filePointer);
+
 	if (toggle == 1) return 0;
 	else toggle = 1;	
 	BlockID idresult;
@@ -188,7 +202,8 @@ int pdict(char *readBuffer, size_t *sizeof_buffer, const char **state, int *stat
 			//	printf("Non null ID result!\n");
 
 				/* Executing the method pointed to by the return of ID */
-				result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file, index);
+				*filePointer = ftell(file);
+				result = idresult(readBuffer, sizeof_buffer, state, state_index, bencode, file, index, filePointer);
 				
 			} else if (charIn != 58) {	// If still reading in length of datablock
 				readBuffer[readBufferIndex] = charIn;

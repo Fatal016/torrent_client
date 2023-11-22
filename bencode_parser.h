@@ -26,24 +26,26 @@ struct bencode_info {
 	char* pieces;
 };
 
+// Only parse necessary + announce_list since it is arguably necessary, otherwise ignore on initial pass. Can go back and parse out optionals later on if necessary but they can't be consistently implemented with state machine scanning
+
 // Pointers to arrays are fixed length so this works with heap
 struct bencode_module {
 	char* announce;
 	char** announce_list;
-	char* comment;
-	char* created_by;
-	char* creation_date;
-	char* encoding;
+	//char* comment;
+	//char* created_by;
+	//char* creation_date;
+	//char* encoding;
 	struct bencode_info info;
 	char** url_list;
 };
 
-typedef int (*BlockID)(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
+typedef int (*BlockID)(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*, int*);
 
 int pstr(char*, size_t*, FILE*);
-int plist(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
-int pdict(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
-int end(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*);
+int plist(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*, int*);
+int pdict(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*, int*);
+int end(char*, size_t*, const char**, int*, struct bencode_module*, FILE*, int*, int*);
 
 /* Tools */
 void printBencode(struct bencode_module *bencode, int *index) {
