@@ -31,6 +31,7 @@ typedef int (*id)(struct bencode_module*, FILE*);
 int parse_single(char*);
 int dictionary(struct bencode_module*, FILE*);
 int list(struct bencode_module*, FILE*);
+int integer(struct bencode_module*, FILE*);
 int end(struct bencode_module* __attribute__((unused)), FILE* __attribute__((unused)));
 
 void allocate(struct bencode_module*, char**);
@@ -42,6 +43,9 @@ id identify(char c) {
 			break;
 		case 'l':
 			return list;
+			break;
+		case 'i':
+			return integer;
 			break;
 		case 'e':
 			return end;
@@ -59,4 +63,8 @@ void printBencode(struct bencode_module *bencode, int *index) {
 	for (int i = 0; i < *index; i++) {
 		printf("Announce-List: %s\n", bencode->announce_list[i]);
 	}
+	printf("Comment: %s\n", bencode->comment);
+	printf("Created By: %s\n", bencode->created_by);
+	printf("Creation Date: %s\n", bencode->creation_date);
+	printf("Encoding: %s\n", bencode->encoding);
 }

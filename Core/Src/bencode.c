@@ -63,10 +63,6 @@ int parse_single(char *filepath) {
 
 /* Can likely malloc everything since im putting in the null character anyway? */
 
-void allocate(struct bencode_module *bencode, char **m) {
-	*m = (char *)calloc(BUFFER_SIZE, sizeof(char));
-	bencode->head_pointer = m;
-}
 
 int dictionary(struct bencode_module *bencode, FILE *file) {
 	
@@ -89,11 +85,8 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 			
 			if (type != NULL) {
 				result = type(bencode, file);
-				
-				if (result == 2) {
-					printBencode(bencode, &bencode->announce_list_index);
-					exit(0);
-				}
+				bencode->head_pointer = NULL;
+				buffer_index = -1;
 			} else {
 				if (file_char == ':') {
 					buffer[buffer_index] = '\0';
@@ -115,6 +108,15 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 							bencode->index_pointer = &bencode->announce_list_index;
 						} else if (strcmp(compare_buffer, "comment") == 0) {
 							allocate(bencode, &bencode->comment);
+						} else if (strcmp(compare_buffer, "created by") == 0) {
+							allocate(bencode, &bencode->created_by);
+						} else if (strcmp(compare_buffer, "creation date") == 0) {
+							allocate(bencode, &bencode->creation_date);
+						} else if (strcmp(compare_buffer, "encoding") == 0) {
+							allocate(bencode, &bencode->encoding);
+						} else if (strcmp(compare_buffer, "info") == 0) {
+							printBencode(bencode, &bencode->announce_list_index);
+							exit(0);
 						}
 
 					} else {
@@ -179,6 +181,42 @@ int list(struct bencode_module *bencode, FILE *file) {
 	return 2;
 }
 
+int integer(struct bencode_module *bencode, FILE *file) {
+
+	int buffer_index;
+	int result;
+	
+	char file_char = '\0';
+	char buffer[BUFFER_SIZE];
+
+	id type;
+
+	for (buffer_index = 0; buffer_index < BUFFER_SIZE; buffer_index++) {
+		file_char = fgetc(file);
+		
+		type = identify(file_char);
+
+		if (type != NULL) {
+			result = type(bencode, file);
+			
+			if (result == 1) {
+				buffer[buffer_index] = '\0';
+				strcpy(*bencode->head_pointer, buffer);
+				return 0;
+			}
+		} else {
+			buffer[buffer_index] = file_char;
+		}
+	}
+	printf("Buffer exceeded!\n");
+	return -1;	
+}
+
 int end(struct bencode_module *bencode __attribute__((unused)), FILE *file __attribute__((unused))) {
 	return 1;
+}
+
+void allocate(struct bencode_module *bencode, char **m) {
+	*m = (char *)calloc(BUFFER_SIZE, sizeof(char));
+	bencode->head_pointer = m;
 }
