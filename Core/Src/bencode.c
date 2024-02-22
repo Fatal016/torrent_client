@@ -80,6 +80,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 	id type;
 
+	/* Will need to change this like list to avoid accidental exit from dict parse */
 	while (file_char != 'e' && !feof(file)) {
 		for (buffer_index = 0; buffer_index < BUFFER_SIZE; buffer_index++) {
 			file_char = fgetc(file);
