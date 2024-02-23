@@ -1,28 +1,31 @@
 struct info_file {
-	char* length;
+	int* length;
 	char* path;
 };
 
 struct bencode_info {
 	struct info_file* files;
 	char* name;
-	char* piece_length;
+	int* piece_length;
 	char* pieces;
 };
 
 struct bencode_module {
 	char* announce;
 	char** announce_list;
-	int announce_list_index;
 	char* comment;
 	char* created_by;
-	char* creation_date;
+	int* creation_date;
 	char* encoding;
-	struct bencode_info info;	
+	struct bencode_info *info;	
 	char** url_list;
-	int url_list_index;
 	
-	char** head_pointer;
+	int announce_list_index;
+	int info_file_index;
+	int url_list_index;
+
+	/* Should convert to a void pointer */
+	void* head_pointer;
 	int* index_pointer;
 };
 
@@ -59,12 +62,14 @@ id identify(char c) {
 
 /* Tools */
 void printBencode(struct bencode_module *bencode, int *index) {
-	printf("Announce: %s\n", bencode->announce);
+	printf("Announce: %s\n", (char *)&bencode->announce);
+	/*
 	for (int i = 0; i < *index; i++) {
 		printf("Announce-List: %s\n", bencode->announce_list[i]);
 	}
 	printf("Comment: %s\n", bencode->comment);
 	printf("Created By: %s\n", bencode->created_by);
-	printf("Creation Date: %s\n", bencode->creation_date);
+	printf("Creation Date: %d\n", *bencode->creation_date);
 	printf("Encoding: %s\n", bencode->encoding);
+	*/
 }

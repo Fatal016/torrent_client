@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "../Inc/bencode.h"
 
 #define BUFFER_SIZE 128
 #define ANNOUNCE_LIST_SIZE 10
+#define INFO_FILE_SIZE 5
+
 #define THREAD_NUM 1
 
 int main(int argc, char **argv) {	
@@ -31,6 +34,8 @@ int parse_single(char *filepath) {
 	bencode.head_pointer = NULL;
 	bencode.announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
 	bencode.announce_list_index = 0;
+	bencode.info_file_index = 0;
+
 	
 	id type;
 
@@ -60,6 +65,11 @@ int parse_single(char *filepath) {
 	}
 }
 
+
+void allocate(struct bencode_module *bencode, char **m) {
+	*m = (char *)calloc(BUFFER_SIZE, sizeof(char));
+	bencode->head_pointer = m;
+}
 
 /* Can likely malloc everything since im putting in the null character anyway? */
 
@@ -102,25 +112,66 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 					if (bencode->head_pointer == NULL) {
 						if (strcmp(compare_buffer, "announce") == 0) {
-							allocate(bencode, &bencode->announce);
+							
+							bencode->announce = (char *)malloc(sizeof(BUFFER_SIZE * sizeof(char)));
+							bencode->head_pointer = (void *)&bencode->announce;
+
+							//allocate(bencode, &bencode->announce);
+						
+
 						} else if (strcmp(compare_buffer, "announce-list") == 0) {
-							allocate(bencode, &bencode->announce_list[bencode->announce_list_index]);	
+							
+							bencode->announce_list[bencode->announce_list_index] = (char *)malloc(sizeof(BUFFER_SIZE * sizeof(char)));
+							bencode->head_pointer = (void *)&bencode->announce_list;
 							bencode->index_pointer = &bencode->announce_list_index;
-						} else if (strcmp(compare_buffer, "comment") == 0) {
+
+							//allocate(bencode, &bencode->announce_list[bencode->announce_list_index]);	
+							//bencode->index_pointer = &bencode->announce_list_index;
+						} else {
+							printBencode(bencode, &bencode->announce_list_index);	
+							exit(0);
+						}
+/*
+else if (strcmp(compare_buffer, "comment") == 0) {
 							allocate(bencode, &bencode->comment);
 						} else if (strcmp(compare_buffer, "created by") == 0) {
 							allocate(bencode, &bencode->created_by);
 						} else if (strcmp(compare_buffer, "creation date") == 0) {
-							allocate(bencode, &bencode->creation_date);
+							bencode->creation_date = (time_t *)malloc(sizeof(time_t *));
+							bencode->head_pointer = (char **)&bencode->creation_date;							
 						} else if (strcmp(compare_buffer, "encoding") == 0) {
 							allocate(bencode, &bencode->encoding);
 						} else if (strcmp(compare_buffer, "info") == 0) {
-							printBencode(bencode, &bencode->announce_list_index);
+							bencode->info = (struct bencode_info *)malloc(sizeof(struct bencode_info *));
+							bencode->head_pointer = (char **)&bencode->info;
+						} else if (strcmp(compare_buffer, "files") == 0) {
 							exit(0);
+							printf("Hit exit\n");
+							bencode->info->files = (struct info_file *)malloc(INFO_FILE_SIZE * sizeof(struct info_file *));
+							bencode->head_pointer = (char **)&bencode->info->files;
+						} else {
+							exit(0);
+						} 
+
+*/
+/*
+else if(strcmp(compare_buffer, "length") == 0) {
+							bencode->info->files[bencode->info_file_index].length = (int *)malloc(sizeof(int *));
+							bencode->head_pointer = (char **)&bencode->info->files[bencode->info_file_index].length;
+						} else if (strcmp(compare_buffer, "path") == 0) {
+							
 						}
 
+*/
+
+
+						//	bencode->info.files = (info_file *)malloc(INFO_FILE_SIZE * sizeof(info_file *));
+						//	bencode->index_pointer = &bencode->info.files[bencode->info_file_index];
+		
+						//printBencode(bencode, &bencode->announce_list_index); 
+
 					} else {
-						strcpy(*bencode->head_pointer, compare_buffer);
+						strcpy((char *)bencode->head_pointer, compare_buffer);
 						bencode->head_pointer = NULL;
 					}		
 					buffer_index = -1;	
@@ -169,10 +220,10 @@ int list(struct bencode_module *bencode, FILE *file) {
 					printf("Parse error: Could not capture full segment. Verify the integrity of your .torrent file\n");
 					return -1;
 				}
-
-				strcpy(bencode->head_pointer[*bencode->index_pointer], compare_buffer);
+			
+				strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], compare_buffer);
 				(*bencode->index_pointer)++;
-				bencode->head_pointer[*bencode->index_pointer] = (char *)calloc(BUFFER_SIZE, sizeof(char));
+				((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)calloc(BUFFER_SIZE, sizeof(char));
 			} else {
 				buffer[buffer_index] = file_char;
 			}
@@ -201,7 +252,7 @@ int integer(struct bencode_module *bencode, FILE *file) {
 			
 			if (result == 1) {
 				buffer[buffer_index] = '\0';
-				strcpy(*bencode->head_pointer, buffer);
+				*(int *)bencode->head_pointer = atoi(buffer);
 				return 0;
 			}
 		} else {
@@ -216,7 +267,3 @@ int end(struct bencode_module *bencode __attribute__((unused)), FILE *file __att
 	return 1;
 }
 
-void allocate(struct bencode_module *bencode, char **m) {
-	*m = (char *)calloc(BUFFER_SIZE, sizeof(char));
-	bencode->head_pointer = m;
-}
