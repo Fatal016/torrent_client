@@ -65,15 +65,6 @@ int parse_single(char *filepath) {
 	}
 }
 
-
-void allocate(struct bencode_module *bencode, char **m) {
-	*m = (char *)calloc(BUFFER_SIZE, sizeof(char));
-	bencode->head_pointer = m;
-}
-
-/* Can likely malloc everything since im putting in the null character anyway? */
-
-
 int dictionary(struct bencode_module *bencode, FILE *file) {
 	
 	int buffer_index;
@@ -85,6 +76,8 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 	char compare_buffer[BUFFER_SIZE];
 
 	id type;
+
+	int test = 15;
 
 	/* Will need to change this like list to avoid accidental exit from dict parse */
 	while (file_char != 'e' && !feof(file)) {
@@ -112,48 +105,49 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 					if (bencode->head_pointer == NULL) {
 						if (strcmp(compare_buffer, "announce") == 0) {
-							
-							bencode->announce = (char *)malloc(sizeof(BUFFER_SIZE * sizeof(char)));
-							bencode->head_pointer = (void *)&bencode->announce;
-
-							//allocate(bencode, &bencode->announce);
-						
-
+							bencode->announce = (char *)malloc(BUFFER_SIZE * sizeof(char));
+							bencode->head_pointer = (void *)bencode->announce;
 						} else if (strcmp(compare_buffer, "announce-list") == 0) {
-							
-							bencode->announce_list[bencode->announce_list_index] = (char *)malloc(sizeof(BUFFER_SIZE * sizeof(char)));
-							bencode->head_pointer = (void *)&bencode->announce_list;
+							bencode->announce_list[bencode->announce_list_index] = (char *)malloc(BUFFER_SIZE * sizeof(char));
+							bencode->head_pointer = (void *)bencode->announce_list;
 							bencode->index_pointer = &bencode->announce_list_index;
+						} else if (strcmp(compare_buffer, "comment") == 0) {
+							bencode->comment = (char *)malloc(BUFFER_SIZE * sizeof(char));
+							bencode->head_pointer = (void *)bencode->comment;
+						} else if (strcmp(compare_buffer, "created by") == 0) {
+							bencode->created_by = (char *)malloc(BUFFER_SIZE * sizeof(char));
+							bencode->head_pointer = (void *)bencode->created_by;
+						} else if (strcmp(compare_buffer, "creation date") == 0) {
+							bencode->creation_date = (int *)malloc(sizeof(int));
+							bencode->head_pointer = (void *)bencode->creation_date;
 
-							//allocate(bencode, &bencode->announce_list[bencode->announce_list_index]);	
-							//bencode->index_pointer = &bencode->announce_list_index;
+						} else if (strcmp(compare_buffer, "encoding") == 0) {
+							bencode->encoding = (char *)malloc(BUFFER_SIZE * sizeof(char));
+							bencode->head_pointer = (void *)bencode->encoding;
+						} else if (strcmp(compare_buffer, "info") == 0) {
+							
+							bencode->info = (struct bencode_info *)malloc(INFO_FILE_SIZE * sizeof(struct bencode_info));
+							bencode->head_pointer = (void *)bencode->info;
+						
+						} else if (strcmp(compare_buffer, "files") == 0) {
+							printBencode(bencode, &bencode->announce_list_index);	
+							
+							/* Losing head pointer in nested dictionaries which is breaking functionality */
+
+
+printf("Hit exit\n");
+							exit(0);
+						} else if (strcmp(compare_buffer, "length") == 0) {
+
+							printBencode(bencode, &bencode->announce_list_index);	
+							
+
 						} else {
 							printBencode(bencode, &bencode->announce_list_index);	
 							exit(0);
 						}
-/*
-else if (strcmp(compare_buffer, "comment") == 0) {
-							allocate(bencode, &bencode->comment);
-						} else if (strcmp(compare_buffer, "created by") == 0) {
-							allocate(bencode, &bencode->created_by);
-						} else if (strcmp(compare_buffer, "creation date") == 0) {
-							bencode->creation_date = (time_t *)malloc(sizeof(time_t *));
-							bencode->head_pointer = (char **)&bencode->creation_date;							
-						} else if (strcmp(compare_buffer, "encoding") == 0) {
-							allocate(bencode, &bencode->encoding);
-						} else if (strcmp(compare_buffer, "info") == 0) {
-							bencode->info = (struct bencode_info *)malloc(sizeof(struct bencode_info *));
-							bencode->head_pointer = (char **)&bencode->info;
-						} else if (strcmp(compare_buffer, "files") == 0) {
-							exit(0);
-							printf("Hit exit\n");
-							bencode->info->files = (struct info_file *)malloc(INFO_FILE_SIZE * sizeof(struct info_file *));
-							bencode->head_pointer = (char **)&bencode->info->files;
-						} else {
-							exit(0);
-						} 
+					
 
-*/
 /*
 else if(strcmp(compare_buffer, "length") == 0) {
 							bencode->info->files[bencode->info_file_index].length = (int *)malloc(sizeof(int *));
@@ -171,6 +165,7 @@ else if(strcmp(compare_buffer, "length") == 0) {
 						//printBencode(bencode, &bencode->announce_list_index); 
 
 					} else {
+						//strcpy((char *)bencode->head_pointer, compare_buffer);
 						strcpy((char *)bencode->head_pointer, compare_buffer);
 						bencode->head_pointer = NULL;
 					}		
@@ -223,7 +218,7 @@ int list(struct bencode_module *bencode, FILE *file) {
 			
 				strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], compare_buffer);
 				(*bencode->index_pointer)++;
-				((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)calloc(BUFFER_SIZE, sizeof(char));
+				((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)malloc(BUFFER_SIZE * sizeof(char));
 			} else {
 				buffer[buffer_index] = file_char;
 			}

@@ -62,8 +62,7 @@ id identify(char c) {
 
 /* Tools */
 void printBencode(struct bencode_module *bencode, int *index) {
-	printf("Announce: %s\n", (char *)&bencode->announce);
-	/*
+	printf("Announce: %s\n", bencode->announce);
 	for (int i = 0; i < *index; i++) {
 		printf("Announce-List: %s\n", bencode->announce_list[i]);
 	}
@@ -71,5 +70,4 @@ void printBencode(struct bencode_module *bencode, int *index) {
 	printf("Created By: %s\n", bencode->created_by);
 	printf("Creation Date: %d\n", *bencode->creation_date);
 	printf("Encoding: %s\n", bencode->encoding);
-	*/
 }
