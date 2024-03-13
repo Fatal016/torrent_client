@@ -25,8 +25,10 @@ struct bencode_module {
 	int file_path_index;
 	int url_list_index;
 
+	char* buffer;
+	size_t buffer_size;
+
 	void* head_pointer;
-	void* file_pointer;
 	int* index_pointer;
 };
 

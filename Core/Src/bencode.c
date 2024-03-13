@@ -5,7 +5,7 @@
 
 #include "../Inc/bencode.h"
 
-#define BUFFER_SIZE 102000
+#define BUFFER_SIZE 128
 #define ANNOUNCE_LIST_SIZE 10
 #define INFO_FILE_SIZE 5
 #define FILE_PATH_SIZE 1
@@ -35,10 +35,15 @@ int parse_single(char *filepath) {
 	struct bencode_module bencode;
 	bencode.announce_list_index = 0;
 	bencode.info_file_index = 0;
-	bencode.url_list_index = 0;
 	bencode.file_path_index = 0;
+	bencode.url_list_index = 0;
 	
+	/* Need to check if needed */
 	bencode.head_pointer = NULL;
+	bencode.index_pointer = NULL;
+
+	bencode.buffer_size = BUFFER_SIZE;
+	bencode.buffer = (char *)malloc(bencode.buffer_size * sizeof(char));
 
 	id type;
 
@@ -83,6 +88,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 	while (file_char != 'e' && !feof(file) && file_char != '\n') {
 		for (buffer_index = 0; buffer_index < BUFFER_SIZE; buffer_index++) {
+
 			file_char = fgetc(file);
 		
 			type = identify(file_char);
@@ -100,6 +106,12 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 				if (file_char == ':') {
 					buffer[buffer_index] = '\0';
 					length = atoi(buffer);	
+					
+					while (length > bencode->buffer_size) {
+						bencode->buffer_size = bencode->buffer_size * 2;
+						printf("Buffer size: %ld Real: %ld\n", bencode->buffer_size, sizeof(bencode->buffer));
+						bencode->buffer = realloc(bencode->buffer, bencode->buffer_size);
+					}	
 
 					result = fread(compare_buffer, 1, length, file);
 					compare_buffer[length] = '\0';
