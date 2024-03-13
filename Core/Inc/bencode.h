@@ -78,6 +78,8 @@ void printBencode(struct bencode_module *bencode) {
 	}
 	printf("\nName: %s\n", bencode->info->name);
 	printf("Piece Length: %d\n", *bencode->info->piece_length);
-	printf("Pieces: %s\n", bencode->info->pieces);
-
+	printf("Pieces: %s\n\n", bencode->info->pieces);
+	for (int i = 0; i < bencode->url_list_index; i++) {
+		printf("Url List %d: %s\n", i, bencode->url_list[i]);
+	}
 }
