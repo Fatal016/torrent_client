@@ -5,9 +5,11 @@
 
 #include "../Inc/bencode.h"
 
-#define BUFFER_SIZE 128
+#define BUFFER_SIZE 102000
 #define ANNOUNCE_LIST_SIZE 10
 #define INFO_FILE_SIZE 5
+#define FILE_PATH_SIZE 1
+#define URL_LIST_SIZE 1
 
 #define THREAD_NUM 1
 
@@ -31,12 +33,13 @@ int parse_single(char *filepath) {
 	int result;
 
 	struct bencode_module bencode;
-	bencode.head_pointer = NULL;
-	bencode.announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
 	bencode.announce_list_index = 0;
 	bencode.info_file_index = 0;
-
+	bencode.url_list_index = 0;
+	bencode.file_path_index = 0;
 	
+	bencode.head_pointer = NULL;
+
 	id type;
 
 	/* Error checking for existence of file */
@@ -58,6 +61,7 @@ int parse_single(char *filepath) {
 	
 	if (result == 0) {
 		printf("Dictionary parsed!\n");
+		printBencode(&bencode);
 		return 0;
 	} else {
 		printf("Error in parsing dictionary\n");
@@ -77,10 +81,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 	id type;
 
-	int test = 15;
-
-	/* Will need to change this like list to avoid accidental exit from dict parse */
-	while (file_char != 'e' && !feof(file)) {
+	while (file_char != 'e' && !feof(file) && file_char != '\n') {
 		for (buffer_index = 0; buffer_index < BUFFER_SIZE; buffer_index++) {
 			file_char = fgetc(file);
 		
@@ -88,6 +89,11 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 			
 			if (type != NULL) {
 				result = type(bencode, file);
+
+				if (result == 1) {
+					return 0;
+				}
+
 				bencode->head_pointer = NULL;
 				buffer_index = -1;
 			} else {
@@ -107,10 +113,15 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						if (strcmp(compare_buffer, "announce") == 0) {
 							bencode->announce = (char *)malloc(BUFFER_SIZE * sizeof(char));
 							bencode->head_pointer = (void *)bencode->announce;
+						
 						} else if (strcmp(compare_buffer, "announce-list") == 0) {
+							if (bencode->announce_list_index == 0) {
+								bencode->announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
+							}
 							bencode->announce_list[bencode->announce_list_index] = (char *)malloc(BUFFER_SIZE * sizeof(char));
 							bencode->head_pointer = (void *)bencode->announce_list;
 							bencode->index_pointer = &bencode->announce_list_index;
+						
 						} else if (strcmp(compare_buffer, "comment") == 0) {
 							bencode->comment = (char *)malloc(BUFFER_SIZE * sizeof(char));
 							bencode->head_pointer = (void *)bencode->comment;
@@ -126,46 +137,51 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 							bencode->head_pointer = (void *)bencode->encoding;
 						} else if (strcmp(compare_buffer, "info") == 0) {
 							
-							bencode->info = (struct bencode_info *)malloc(INFO_FILE_SIZE * sizeof(struct bencode_info));
-							bencode->head_pointer = (void *)bencode->info;
-						
+							bencode->info = (struct bencode_info *)malloc(sizeof(struct bencode_info));
+							bencode->head_pointer = NULL;
+							//bencode->head_pointer = (void *)bencode->info;
+													
+
 						} else if (strcmp(compare_buffer, "files") == 0) {
-							printBencode(bencode, &bencode->announce_list_index);	
-							
-							/* Losing head pointer in nested dictionaries which is breaking functionality */
+							bencode->info->files = (struct info_file **)malloc(INFO_FILE_SIZE * sizeof(struct info_file *));
 
-
-printf("Hit exit\n");
-							exit(0);
 						} else if (strcmp(compare_buffer, "length") == 0) {
+							bencode->info->files[bencode->info_file_index] = (struct info_file *)malloc(sizeof(struct info_file *));
+							bencode->info->files[bencode->info_file_index]->length = (int *)malloc(sizeof(int));
+							bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->length;
+						
 
-							printBencode(bencode, &bencode->announce_list_index);	
-							
+						} else if (strcmp(compare_buffer, "path") == 0) {
+							bencode->file_path_index = 0;
+							bencode->info->files[bencode->info_file_index]->path = (char **)malloc(FILE_PATH_SIZE * sizeof(char *));
+							bencode->info->files[bencode->info_file_index]->path[bencode->file_path_index] = (char *)malloc(BUFFER_SIZE * sizeof(char));
+							bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->path;
+							bencode->index_pointer = &bencode->file_path_index;
+							bencode->info_file_index++;
 
+
+						} else if (strcmp(compare_buffer, "name") == 0) {
+							bencode->info->name = (char *)malloc(BUFFER_SIZE * sizeof(char));
+							bencode->head_pointer = (void *)bencode->info->name;
+						} else if (strcmp(compare_buffer, "piece length") == 0) {
+							bencode->info->piece_length = (int *)malloc(sizeof(int));
+							bencode->head_pointer = (void *)bencode->info->piece_length;
+						} else if (strcmp(compare_buffer, "pieces") == 0) {
+							bencode->info->pieces = (char *)malloc(*bencode->info->piece_length * sizeof(char));
+							bencode->head_pointer = (void *)bencode->info->pieces;
+						} else if (strcmp(compare_buffer, "url-list") == 0) {
+							if (bencode->url_list_index == 0) {
+								bencode->url_list = (char **)malloc(URL_LIST_SIZE * sizeof(char *));
+							}
+							bencode->url_list[bencode->url_list_index] = (char *)malloc(BUFFER_SIZE * sizeof(char));
+							bencode->head_pointer = (void *)bencode->url_list;
+							bencode->index_pointer = &bencode->url_list_index;
+						
 						} else {
-							printBencode(bencode, &bencode->announce_list_index);	
+							printBencode(bencode);	
 							exit(0);
 						}
-					
-
-/*
-else if(strcmp(compare_buffer, "length") == 0) {
-							bencode->info->files[bencode->info_file_index].length = (int *)malloc(sizeof(int *));
-							bencode->head_pointer = (char **)&bencode->info->files[bencode->info_file_index].length;
-						} else if (strcmp(compare_buffer, "path") == 0) {
-							
-						}
-
-*/
-
-
-						//	bencode->info.files = (info_file *)malloc(INFO_FILE_SIZE * sizeof(info_file *));
-						//	bencode->index_pointer = &bencode->info.files[bencode->info_file_index];
-		
-						//printBencode(bencode, &bencode->announce_list_index); 
-
 					} else {
-						//strcpy((char *)bencode->head_pointer, compare_buffer);
 						strcpy((char *)bencode->head_pointer, compare_buffer);
 						bencode->head_pointer = NULL;
 					}		

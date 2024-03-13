@@ -1,10 +1,10 @@
 struct info_file {
 	int* length;
-	char* path;
+	char** path;
 };
 
 struct bencode_info {
-	struct info_file* files;
+	struct info_file** files;
 	char* name;
 	int* piece_length;
 	char* pieces;
@@ -22,10 +22,11 @@ struct bencode_module {
 	
 	int announce_list_index;
 	int info_file_index;
+	int file_path_index;
 	int url_list_index;
 
-	/* Should convert to a void pointer */
 	void* head_pointer;
+	void* file_pointer;
 	int* index_pointer;
 };
 
@@ -61,13 +62,20 @@ id identify(char c) {
 
 
 /* Tools */
-void printBencode(struct bencode_module *bencode, int *index) {
-	printf("Announce: %s\n", bencode->announce);
-	for (int i = 0; i < *index; i++) {
-		printf("Announce-List: %s\n", bencode->announce_list[i]);
+void printBencode(struct bencode_module *bencode) {
+	printf("Announce: %s\n\n", bencode->announce);
+	for (int i = 0; i < bencode->announce_list_index; i++) {
+		printf("Announce-List %d: %s\n", i, bencode->announce_list[i]);
 	}
-	printf("Comment: %s\n", bencode->comment);
+	printf("\nComment: %s\n", bencode->comment);
 	printf("Created By: %s\n", bencode->created_by);
 	printf("Creation Date: %d\n", *bencode->creation_date);
-	printf("Encoding: %s\n", bencode->encoding);
+	if (bencode->encoding != NULL) printf("Encoding: %s\n\n", bencode->encoding);
+	for (int i = 0; i < bencode->info_file_index; i++) {
+		printf("Info File %d: Length: %d Path: %s\n", i, *bencode->info->files[i]->length, *bencode->info->files[i]->path);
+	}
+	printf("\nName: %s\n", bencode->info->name);
+	printf("Piece Length: %d\n", *bencode->info->piece_length);
+	printf("Pieces: %s\n", bencode->info->pieces);
+
 }
