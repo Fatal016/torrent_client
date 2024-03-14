@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 
 #include "../Inc/bencode.h"
 
@@ -32,11 +33,16 @@ int parse_single(char *filepath) {
 
 	int result;
 
-	struct bencode_module bencode = {.buffer_size = BUFFER_SIZE, .head_pointer = NULL, .announce_list_index = 0, .info_file_index = 0, .file_path_index = 0, .url_list_index = 0};
+	struct bencode_module bencode = {
+		.buffer_size = BUFFER_SIZE, 
+		.head_pointer = NULL, 
+		.announce_list_index = 0, 
+		.info_file_index = 0, 
+		.url_list_index = 0,
+		.flag_throwaway = 0
+	};
 
 	bencode.buffer = (char *)malloc(bencode.buffer_size * sizeof(char));
-
-	bencode.announce_list_index = 0;
 
 	id type;
 
@@ -127,8 +133,8 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 					
 					} else if (strcmp(bencode->buffer, "announce-list") == 0) {
 					
-						bencode->announce_list = (char **)malloc(sizeof(char *));	
-						//bencode->announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
+						//bencode->announce_list = (char **)malloc(sizeof(char *));	
+						bencode->announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
 						bencode->head_pointer = (void *)bencode->announce_list;
 						bencode->index_pointer = &bencode->announce_list_index;
 					
@@ -176,10 +182,10 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 					} else if (strcmp(bencode->buffer, "path") == 0) {
 						
-						bencode->file_path_index = 0;
+						bencode->info->files[bencode->info_file_index]->file_path_index = 0;
 						bencode->info->files[bencode->info_file_index]->path = (char **)malloc(FILE_PATH_SIZE * sizeof(char *));
 						bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->path;
-						bencode->index_pointer = &bencode->file_path_index;
+						bencode->index_pointer = &bencode->info->files[bencode->info_file_index]->file_path_index;
 						bencode->info_file_index++;
 
 					} else if (strcmp(bencode->buffer, "name") == 0) {
@@ -202,16 +208,18 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						bencode->url_list = (char **)malloc(URL_LIST_SIZE * sizeof(char *));
 						bencode->head_pointer = (void *)bencode->url_list;
 						bencode->index_pointer = &bencode->url_list_index;
-						
+					
 					} else {
-						printBencode(bencode);
-						printf("Parse error: Unrecognized key in dictionary\nKey Value: %s\n", bencode->buffer);
-						return -1;
+						bencode->head_pointer = (void *)-1;	
+						//bencode->head_pointer = NULL;	
+						//printBencode(bencode);
+						//printf("Parse error: Unrecognized key in dictionary\nKey Value: %s\n", bencode->buffer);
+						//return -1;
 					}
 				} else {
 				
 					/* If not looking for key, store buffer as value */
-					strcpy((char *)bencode->head_pointer, bencode->buffer);
+					if (bencode->head_pointer != (void *)-1) strcpy((char *)bencode->head_pointer, bencode->buffer);
 					bencode->head_pointer = NULL;
 				}		
 				buffer_index = -1;	
@@ -259,9 +267,19 @@ int list(struct bencode_module *bencode, FILE *file) {
 					printf("Parse error: Could not capture full segment. Verify the integrity of your .torrent file\n");
 					return -1;
 				}
-			
+		
+				if (strcmp(bencode->buffer, "Subtitles") == 0) {
+					printf("caught\n");
+				}
+	
 				((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)malloc(BUFFER_SIZE * sizeof(char));
 				strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], bencode->buffer);
+/*	
+				if (bencode->info != NULL) {
+				bencode->info->files[*bencode->index_pointer]->file_path_index = bencode->info->files[*bencode->index_pointer]->file_path_index + 1;
+				}
+*/
+				buffer_index = -1;
 				(*bencode->index_pointer)++;
 			} else {
 				bencode->buffer[buffer_index] = file_char;
@@ -277,7 +295,6 @@ int integer(struct bencode_module *bencode, FILE *file) {
 	int result;
 	
 	char file_char = '\0';
-	char buffer[BUFFER_SIZE];
 
 	id type;
 
@@ -290,12 +307,12 @@ int integer(struct bencode_module *bencode, FILE *file) {
 			result = type(bencode, file);
 			
 			if (result == 1) {
-				buffer[buffer_index] = '\0';
-				*(int *)bencode->head_pointer = atoi(buffer);
+				bencode->buffer[buffer_index] = '\0';
+				if (bencode->head_pointer != (void *)-1) *(int *)bencode->head_pointer = atoi(bencode->buffer);
 				return 0;
 			}
 		} else {
-			buffer[buffer_index] = file_char;
+			bencode->buffer[buffer_index] = file_char;
 		}
 	}
 	printf("Buffer exceeded!\n");

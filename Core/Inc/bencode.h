@@ -1,6 +1,8 @@
 struct info_file {
 	int* length;
 	char** path;
+
+	int file_path_index;
 };
 
 struct bencode_info {
@@ -23,7 +25,7 @@ struct bencode_module {
 	
 	int announce_list_index;
 	int info_file_index;
-	int file_path_index;
+	//int file_path_index;
 	int url_list_index;
 
 	char* buffer;
@@ -31,6 +33,8 @@ struct bencode_module {
 
 	void* head_pointer;
 	int* index_pointer;
+
+	int flag_throwaway;
 };
 
 typedef int (*id)(struct bencode_module*, FILE*);
@@ -68,16 +72,18 @@ void printBencode(struct bencode_module *bencode) {
 	for (int i = 0; i < bencode->announce_list_index; i++) {
 		printf("Announce-List %d: %s\n", i, bencode->announce_list[i]);
 	}
-	printf("\nComment: %s\n", bencode->comment);
-	printf("Created By: %s\n", bencode->created_by);
-	printf("Creation Date: %d\n", *bencode->creation_date);
+	if (bencode->comment != NULL) printf("\nComment: %s\n", bencode->comment);
+	if (bencode->created_by != NULL) printf("Created By: %s\n", bencode->created_by);
+	if (bencode->creation_date != NULL) printf("Creation Date: %d\n", *bencode->creation_date);
 	if (bencode->encoding != NULL) printf("Encoding: %s\n\n", bencode->encoding);
 	for (int i = 0; i < bencode->info_file_index; i++) {
-		printf("Info File %d: Length: %d Path: %s\n", i, *bencode->info->files[i]->length, *bencode->info->files[i]->path);
+		for (int j = 0; j < bencode->info->files[i]->file_path_index; j++) {
+			printf("Info File %d: Length: %d Path: %s\n", i, *bencode->info->files[i]->length, bencode->info->files[i]->path[j]);
+		}
 	}
-	printf("\nName: %s\n", bencode->info->name);
-	printf("Piece Length: %d\n", *bencode->info->piece_length);
-	printf("Pieces: %s\n\n", bencode->info->pieces);
+	if (bencode->info->name != NULL) printf("\nName: %s\n", bencode->info->name);
+	if (bencode->info->piece_length != NULL) printf("Piece Length: %d\n", *bencode->info->piece_length);
+	if (bencode->info->pieces != NULL) printf("Pieces: %s\n\n", bencode->info->pieces);
 	for (int i = 0; i < bencode->url_list_index; i++) {
 		printf("Url List %d: %s\n", i, bencode->url_list[i]);
 	}
