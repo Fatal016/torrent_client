@@ -6,6 +6,7 @@ struct info_file {
 struct bencode_info {
 	struct info_file** files;
 	char* name;
+	int* length;
 	int* piece_length;
 	char* pieces;
 };
@@ -39,8 +40,6 @@ int dictionary(struct bencode_module*, FILE*);
 int list(struct bencode_module*, FILE*);
 int integer(struct bencode_module*, FILE*);
 int end(struct bencode_module* __attribute__((unused)), FILE* __attribute__((unused)));
-
-void allocate(struct bencode_module*, char**);
 
 id identify(char c) {
 	switch (c) {

@@ -6,7 +6,7 @@
 #include "../Inc/bencode.h"
 
 #define BUFFER_SIZE 128
-#define ANNOUNCE_LIST_SIZE 10
+#define ANNOUNCE_LIST_SIZE 100
 #define INFO_FILE_SIZE 5
 #define FILE_PATH_SIZE 1
 #define URL_LIST_SIZE 1
@@ -32,10 +32,11 @@ int parse_single(char *filepath) {
 
 	int result;
 
-	struct bencode_module bencode;
-	
-	bencode.buffer_size = BUFFER_SIZE;
+	struct bencode_module bencode = {.buffer_size = BUFFER_SIZE, .head_pointer = NULL, .announce_list_index = 0, .info_file_index = 0, .file_path_index = 0, .url_list_index = 0};
+
 	bencode.buffer = (char *)malloc(bencode.buffer_size * sizeof(char));
+
+	bencode.announce_list_index = 0;
 
 	id type;
 
@@ -125,8 +126,9 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						bencode->head_pointer = (void *)bencode->announce;
 					
 					} else if (strcmp(bencode->buffer, "announce-list") == 0) {
-						
-						bencode->announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
+					
+						bencode->announce_list = (char **)malloc(sizeof(char *));	
+						//bencode->announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
 						bencode->head_pointer = (void *)bencode->announce_list;
 						bencode->index_pointer = &bencode->announce_list_index;
 					
@@ -161,10 +163,17 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 					} else if (strcmp(bencode->buffer, "length") == 0) {
 							
-						bencode->info->files[bencode->info_file_index] = (struct info_file *)malloc(sizeof(struct info_file *));
-						bencode->info->files[bencode->info_file_index]->length = (int *)malloc(sizeof(int));
-						bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->length;
-						
+						if (bencode->info->files != NULL) {
+							/* Multi-file contents */
+							bencode->info->files[bencode->info_file_index] = (struct info_file *)malloc(sizeof(struct info_file *));
+							bencode->info->files[bencode->info_file_index]->length = (int *)malloc(sizeof(int));
+							bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->length;
+						} else {
+							/* Single file contents */
+							bencode->info->length = (int *)malloc(sizeof(int));
+							bencode->head_pointer= (void *)bencode->info->length;
+						}						
+
 					} else if (strcmp(bencode->buffer, "path") == 0) {
 						
 						bencode->file_path_index = 0;
