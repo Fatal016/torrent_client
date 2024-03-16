@@ -6,7 +6,8 @@ Core/Src/bencode.c \
 Core/Src/client.c
 
 HEADERS = \
-Core/Inc/bencode.h
+Core/Inc/bencode.h \
+Core/Inc/client.h
 
 EXECUTABLE = bencode
 
