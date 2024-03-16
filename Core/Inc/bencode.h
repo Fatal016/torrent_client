@@ -25,7 +25,6 @@ struct bencode_module {
 	
 	int announce_list_index;
 	int info_file_index;
-	//int file_path_index;
 	int url_list_index;
 
 	char* buffer;
