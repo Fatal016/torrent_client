@@ -12,62 +12,50 @@
 
 #define THREAD_NUM 1
 
-int main(int argc, char **argv) {	
-
-	if (argc != 2) {
-		printf("passed wrong amount\n");
-		exit(-1);
-	}
-
-	char *filepath = argv[1];
-	
-	parse_single(filepath);
-}
-
-int parse_single(char *filepath) {
+struct bencode_module* parse_single(char *filepath, struct bencode_module* bencode) {
 
 	FILE *file = fopen(filepath, "r");
 	char file_char;
 
 	int result;
-
-	struct bencode_module bencode = {
-		.buffer_size = BUFFER_SIZE, 
-		.head_pointer = NULL, 
-		.announce_list_index = 0, 
-		.info_file_index = 0, 
-		.url_list_index = 0,
-		.flag_throwaway = 0
-	};
-
-	bencode.buffer = (char *)malloc(bencode.buffer_size * sizeof(char));
-
 	id type;
 
 	/* Error checking for existence of file */
 	if (file == NULL) {
 		fprintf(stderr, "Error reading from file: File not found\n");
-		return -1;
+		return NULL;
 	}
 	
 	file_char = fgetc(file);
 	type = identify(file_char);
 	
-	/* Should improve to look just for dictionary */
-	if (type == NULL) {
+	/* Struct initialization */
+	bencode->buffer_size = BUFFER_SIZE;
+	bencode->head_pointer = NULL;
+	bencode->announce_list_index = 0;
+	bencode->info_file_index = 0;
+	bencode->url_list_index = 0;
+	
+	/* Allocating variable-size buffer for reading in and evaluating file contents */
+	bencode->buffer = (char *)malloc(bencode->buffer_size * sizeof(char));
+
+	/* Error checking for presence of dictionary */	
+	if (type != &dictionary) {
 		printf("Parse error: First character was not the beginning of a dictionary\n");
-		return -1;
+		return NULL;
 	}
 	
-	result = type(&bencode, file);
+	/* Running function pointed to by function pointer 'type' */
+	result = type(bencode, file);
 	
+	/* Should implement PAPI for time optimizations/tracking */
 	if (result == 0) {
-		printf("Dictionary parsed!\n");
-		printBencode(&bencode);
-		return 0;
+		printf("Dictionary parsed in ... seconds!\n");
+		return bencode;
 	} else {
+		/* Should include more descriptive error message that includes point what which parsing failed/string it failed at */
 		printf("Error in parsing dictionary\n");
-		return -1;
+		return NULL;
 	}
 }
 
@@ -82,7 +70,6 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 	for (buffer_index = 0; buffer_index < BUFFER_SIZE; buffer_index++) {
 
 		file_char = fgetc(file);
-	
 		type = identify(file_char);
 		
 		if (type != NULL) {
@@ -105,11 +92,11 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 				if (length > bencode->buffer_size) {	
 					
 					/* Doubling buffer size until it can fit data */
+					/* Should implement cap on maximum buffer_size otherwise risk leak */
 					while (length > bencode->buffer_size) bencode->buffer_size = bencode->buffer_size * 2;	
 					
 					bencode->buffer = realloc(bencode->buffer, bencode->buffer_size);
 				}
-
 
 				return_size = fread(bencode->buffer, 1, length, file);
 				
@@ -119,6 +106,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 					return -1;
 				}
 
+				/* Null-terminating read string so that string.h operations work properly */
 				bencode->buffer[length] = '\0';
 
 				/* If member of struct to place data hasn't been set, we need to set it */
@@ -130,7 +118,8 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						bencode->head_pointer = (void *)bencode->announce;
 					
 					} else if (strcmp(bencode->buffer, "announce-list") == 0) {
-					
+				
+						/* Need to figure out cause of nullification of collected values in first few indexes of array! */	
 						//bencode->announce_list = (char **)malloc(sizeof(char *));	
 						bencode->announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
 						bencode->head_pointer = (void *)bencode->announce_list;
@@ -208,18 +197,17 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						bencode->index_pointer = &bencode->url_list_index;
 					
 					} else {
+						/* Setting pointer to effective NULL value to then have unexpected values ignored */
 						bencode->head_pointer = (void *)-1;	
-						//bencode->head_pointer = NULL;	
-						//printBencode(bencode);
-						//printf("Parse error: Unrecognized key in dictionary\nKey Value: %s\n", bencode->buffer);
-						//return -1;
 					}
 				} else {
 				
 					/* If not looking for key, store buffer as value */
-					if (bencode->head_pointer != (void *)-1) strcpy((char *)bencode->head_pointer, bencode->buffer);
+					if (bencode->head_pointer != (void *)-1) {
+						strcpy((char *)bencode->head_pointer, bencode->buffer);
+					}
 					bencode->head_pointer = NULL;
-				}		
+				}
 				buffer_index = -1;	
 			} else {
 				bencode->buffer[buffer_index] = file_char;
@@ -231,12 +219,8 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 int list(struct bencode_module *bencode, FILE *file) {
 	
-	int buffer_index;
-	int result;
-
-	size_t return_size;
-	size_t length;
-
+	int buffer_index, result;
+	size_t return_size, length;
 	char file_char = '\0';
 
 	id type;
@@ -266,10 +250,6 @@ int list(struct bencode_module *bencode, FILE *file) {
 					return -1;
 				}
 		
-				if (strcmp(bencode->buffer, "Subtitles") == 0) {
-					printf("caught\n");
-				}
-	
 				((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)malloc(BUFFER_SIZE * sizeof(char));
 				strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], bencode->buffer);
 /*	
@@ -319,4 +299,46 @@ int integer(struct bencode_module *bencode, FILE *file) {
 
 int end(struct bencode_module *bencode __attribute__((unused)), FILE *file __attribute__((unused))) {
 	return 1;
+}
+
+id identify(char c) {
+    switch (c) {
+        case 'd':
+            return dictionary;
+            break;
+        case 'l':
+            return list;
+            break;
+        case 'i':
+            return integer;
+            break;
+        case 'e':
+            return end;
+            break;
+        default:
+            return NULL;
+            break;
+    }
+}
+
+void printBencode(struct bencode_module *bencode) {
+    printf("Announce: %s\n\n", bencode->announce);
+    for (int i = 0; i < bencode->announce_list_index; i++) {
+        printf("Announce-List %d: %s\n", i, bencode->announce_list[i]);
+    }
+    if (bencode->comment != NULL) printf("\nComment: %s\n", bencode->comment);
+    if (bencode->created_by != NULL) printf("Created By: %s\n", bencode->created_by);
+    if (bencode->creation_date != NULL) printf("Creation Date: %d\n", *bencode->creation_date);
+    if (bencode->encoding != NULL) printf("Encoding: %s\n\n", bencode->encoding);
+    for (int i = 0; i < bencode->info_file_index; i++) {
+        for (int j = 0; j < bencode->info->files[i]->file_path_index; j++) {
+            printf("Info File %d: Length: %d Path: %s\n", i, *bencode->info->files[i]->length, bencode->info->files[i]->path[j]);
+        }
+    }
+    if (bencode->info->name != NULL) printf("\nName: %s\n", bencode->info->name);
+    if (bencode->info->piece_length != NULL) printf("Piece Length: %d\n", *bencode->info->piece_length);
+    if (bencode->info->pieces != NULL) printf("Pieces: %s\n\n", bencode->info->pieces);
+    for (int i = 0; i < bencode->url_list_index; i++) {
+        printf("Url List %d: %s\n", i, bencode->url_list[i]);
+    }
 }

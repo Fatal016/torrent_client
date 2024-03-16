@@ -1,45 +1,21 @@
 #include <stdio.h>
+#include <stdlib.h>
 
-int main() {
-	enum parse_state{ BENCODE_TYPE, BENCODE_LENGTH, BENCODE_CONTENTS };
-		
-	FILE *file = fopen("test.torrent", "r");
-	if (file == NULL) {
-		perror("Error opening file");
-		return -1;
+#include "../Inc/bencode.h"
+
+int main(int argc, char **argv) {
+	
+	if (argc != 2) {
+		printf("passed wrong amount\n");
+		exit(-1);
 	}
-
-	char id;
-	enum parse_state state;
-
-	while (1) {
-		id = fgetc(file);
-		switch (state) {
-			case BENCODE_TYPE:
-				id = fgetc(file);
-				printf("%d\n", id);
-				state = id >= 97 ? BENCODE_TYPE : BENCODE_LENGTH;
-				break;
-		}
-		return 0;
-	}
-
 	
-	
-	
-	
-	fclose(file);
-	return 0;
-}
+	char *filepath = argv[1];
 
+	struct bencode_module bencode;
+	parse_single(filepath, &bencode);
 
-struct torrent_info {
-	char* announce;
-	char** announce_list;
-	char* comment;
-	char* creation_date;
-	char* encoding;
-	char* info;
-	char** files; // length:path
-	
+	printf("Announce: %s", bencode.announce);
+
+	return 1;
 }
