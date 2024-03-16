@@ -2,7 +2,8 @@ CC = gcc
 CFLAGS = -Wall -g -Wextra -std=c11
 
 CC_SOURCES = \
-Core/Src/bencode.c
+Core/Src/bencode.c \
+Core/Src/client.c
 
 HEADERS = \
 Core/Inc/bencode.h
@@ -22,4 +23,3 @@ $(EXECUTABLE): $(OBJECTS)
 
 clean:
 	rm -f $(OBJECTS) $(EXECUTABLE)
-
