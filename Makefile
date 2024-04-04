@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -g -Wextra -std=c11
+CFLAGS = -Wall -g -Wextra -std=gnu11
 
 CC_SOURCES = \
 Core/Src/bencode.c \

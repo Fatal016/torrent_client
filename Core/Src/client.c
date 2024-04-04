@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <netdb.h>
 
+#include <netdb.h>
 #include <sys/socket.h>
+#include <libwebsockets.h>
 
 #include "../Inc/bencode.h"
 #include "../Inc/client.h"
@@ -89,7 +90,16 @@ int getTracker(struct bencode_module *bencode, char *hostname, char *port, struc
 		}
 			
 	} else {
-		
+		result = parseHostname(bencode->announce, &hostname_start, &hostname_end, &hostname);
+
+		if (result == 1) {
+			printf ("Error in parsing %s\n", bencode->announce);
+			return 1;
+		}
+
+		testTracker(server, hostname);
+
+		result = parsePort(bencode->announce, &hostname_end, &port_start, &port_end, &port);
 	}
 	
 	return 0;
