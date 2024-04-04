@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Error socket: %s\n", strerror(errno));
 	}
 
-	result = getTracker(&bencode, port, hostname, server);
+	result = getTracker(&bencode, hostname, port, server);
 
 	if (result == 0) {
 		printf("Good!\n");
@@ -70,8 +70,11 @@ int getTracker(struct bencode_module *bencode, char *hostname, char *port, struc
 	
 	if (bencode->announce_list != NULL) {
 		for (int tracker = 0; tracker < bencode->announce_list_index; tracker++) {
+
+			memset(hostname, 0, HOSTNAME_SIZE);
+			memset(port, 0, PORT_SIZE);
 		
-			result = parseHostname(bencode->announce_list[tracker], hostname_start, hostname_end, hostname);
+			result = parseHostname(bencode->announce_list[tracker], &hostname_start, &hostname_end, &hostname);
 			
 			/* Error handling for hostname parsing */
 			if (result == 1) {
@@ -82,7 +85,7 @@ int getTracker(struct bencode_module *bencode, char *hostname, char *port, struc
 			/* Check for existence/accessibility of tracker */
 			testTracker(server, hostname);
 
-			result = parsePort(bencode->announce_list[tracker], hostname_end, port_start, port_end, port);
+			result = parsePort(bencode->announce_list[tracker], &hostname_end, &port_start, &port_end, &port);
 		}
 			
 	} else {
@@ -107,9 +110,9 @@ int testTracker(struct hostent *server, char *hostname) {
 	}
 }
 
-int parseHostname(char *url, char *hostname_start, char *hostname_end, char *hostname) {
+int parseHostname(char *url, char **hostname_start, char **hostname_end, char **hostname) {
 	
-	hostname_start = strstr(url, "//");
+	*hostname_start = strstr(url, "//");
 	
 	/* Error handling for lack of http[s]// in URL */
 	if (hostname_start == NULL) {
@@ -117,12 +120,13 @@ int parseHostname(char *url, char *hostname_start, char *hostname_end, char *hos
 		return 1;
 	}	
 
-	hostname_end = strstr(hostname_start + 2, ":");
+	*hostname_end = strstr(*hostname_start + 2, ":");
 	
 	/* Error handling for lack of port specification in URL */
-	if (hostname_end == NULL) {
-		printf("Error in parsing URL: No ':' present\n");
-		return 1;
+	/* Assuming wss as of now */
+	if (*hostname_end == NULL) {
+		strncpy(*hostname, *hostname_start + 2, strlen(url) - 2);
+		return 0;	
 	}	
 
 	// Checking length constraints
@@ -133,31 +137,30 @@ int parseHostname(char *url, char *hostname_start, char *hostname_end, char *hos
 	}	
 	*/
 
-	strncpy(hostname, hostname_start + 2, hostname_end - hostname_start - 2);
+	strncpy(*hostname, *hostname_start + 2, *hostname_end - *hostname_start - 2);
 	
 	return 0;	
 }
 
-int parsePort(char *url, char *hostname_end, char *port_start, char *port_end, char *port) {
+int parsePort(char *url, char **hostname_end, char **port_start, char **port_end, char **port) {
+
+	/* If wss url */
+	if (*hostname_end == '\0') {
+		strcpy(*port, "NULL");
+		return 0;
+	}
 
 	/* Parsing port */
-	port_start = hostname_end + 1;
-	port_end = strstr(url, "/");
-	/*
-	if (port_end == NULL) {
-		port_end = url + sizeof(url) - 1;
-	}
-	*/
-	printf("Start: %p End: %p", &port_start, &port_end);
+	*port_start = *hostname_end + 1;
 	
-	/* Error handling for lack of port termination in URL */
-	if (port_end == NULL) {
-		printf("Error in parsing URL: No '/' present\n");
-		return 1;
-	}	
+	*port_end = strstr(*hostname_end, "/");
 
-	strncpy(port, port_start, port_end - port_start);
-	printf("Port: %s\n", port);
+	/* Capturing until end of url if no filepath is listed */
+	if (*port_end == NULL) {
+		*port_end = url + strlen(url);
+	}
+
+	strncpy(*port, *port_start, *port_end - *port_start);
 	
 	return 0;
 }
