@@ -5,8 +5,8 @@
 #include "../Inc/bencode.h"
 
 #define BUFFER_SIZE 128
-#define ANNOUNCE_LIST_SIZE 100
-#define INFO_FILE_SIZE 5
+#define ANNOUNCE_LIST_SIZE 128
+#define INFO_FILE_SIZE 8
 #define FILE_PATH_SIZE 1
 #define URL_LIST_SIZE 1
 
@@ -51,10 +51,12 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 	/* Should implement PAPI for time optimizations/tracking */
 	if (result == 0) {
 		printf("Dictionary parsed in ... seconds!\n");
+		printBencode(bencode);
 		return bencode;
 	} else {
 		/* Should include more descriptive error message that includes point what which parsing failed/string it failed at */
 		printf("Error in parsing dictionary\n");
+		printBencode(bencode);
 		return NULL;
 	}
 }

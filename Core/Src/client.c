@@ -43,6 +43,9 @@ int main(int argc, char **argv) {
 
 	struct bencode_module bencode;
 	parse_single(filepath, &bencode);
+
+	return 0;
+
 	
 	/* Opening a socket file descriptor */
 	socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
