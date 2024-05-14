@@ -1,3 +1,7 @@
+#define DATA_LENGTH_EXCEEDED -2
+
+
+
 /* Struct for bencode -> info -> files */
 struct info_file {
 	int* length;
