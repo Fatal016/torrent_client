@@ -278,14 +278,10 @@ int list(struct bencode_module *bencode, FILE *file) {
 
 					((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)malloc(BUFFER_SIZE * sizeof(char));
 					strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], bencode->buffer);
+				
+					buffer_index = -1;
+					(*bencode->index_pointer)++;
 				}
-/*	
-				if (bencode->info != NULL) {
-				bencode->info->files[*bencode->index_pointer]->file_path_index = bencode->info->files[*bencode->index_pointer]->file_path_index + 1;
-				}
-*/
-				buffer_index = -1;
-				(*bencode->index_pointer)++;
 			} else {
 				bencode->buffer[buffer_index] = file_char;
 			}
