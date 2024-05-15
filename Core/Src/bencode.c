@@ -215,6 +215,10 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						bencode->head_pointer = (void *)bencode->url_list;
 						bencode->index_pointer = &bencode->url_list_index;
 					
+					/* For testing purposes */
+					} else if (strcmp(bencode->buffer, "profiles") == 0) {
+						bencode->head_pointer = (void *)IGNORE_FLAG;
+
 					} else {
 						/* Setting pointer to effective NULL value to then have unexpected values ignored */
 						bencode->head_pointer = (void *)IGNORE_FLAG;	
@@ -224,8 +228,8 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 					/* If not looking for key, store buffer as value */
 					if (bencode->head_pointer != (void *)IGNORE_FLAG) {
 						strcpy((char *)bencode->head_pointer, bencode->buffer);
+						bencode->head_pointer = NULL;
 					}
-					bencode->head_pointer = NULL;
 				}
 				buffer_index = -1;	
 			} else {
@@ -361,7 +365,10 @@ void printBencode(struct bencode_module *bencode) {
     if (bencode->info->name != NULL) printf("\nName: %s\n", bencode->info->name);
     if (bencode->info->piece_length != NULL) printf("Piece Length: %d\n", *bencode->info->piece_length);
     if (bencode->info->pieces != NULL) printf("Pieces: %s\n\n", bencode->info->pieces);
-    for (int i = 0; i < bencode->url_list_index; i++) {
-        printf("Url List %d: %s\n", i, bencode->url_list[i]);
-    }
+    
+	if (bencode->url_list != NULL) {
+		for (int i = 0; i < bencode->url_list_index; i++) {
+       		printf("Url List %d: %s\n", i, bencode->url_list[i]);
+    	}
+	}
 }
