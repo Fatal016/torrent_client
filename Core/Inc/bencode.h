@@ -1,10 +1,11 @@
 #define DATA_LENGTH_EXCEEDED -2
+#define IGNORE_FLAG -1
 
 
 
 /* Struct for bencode -> info -> files */
 struct info_file {
-	int* length;
+	unsigned long int* length;
 	char** path;
 
 	int file_path_index;

@@ -178,7 +178,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						if (bencode->info->files != NULL) {
 							/* Multi-file contents */
 							bencode->info->files[bencode->info_file_index] = (struct info_file *)malloc(sizeof(struct info_file *));
-							bencode->info->files[bencode->info_file_index]->length = (int *)malloc(sizeof(int));
+							bencode->info->files[bencode->info_file_index]->length = (unsigned long int *)malloc(sizeof(unsigned long int));
 							bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->length;
 						} else {
 							/* Single file contents */
@@ -217,12 +217,12 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 					
 					} else {
 						/* Setting pointer to effective NULL value to then have unexpected values ignored */
-						bencode->head_pointer = (void *)-1;	
+						bencode->head_pointer = (void *)IGNORE_FLAG;	
 					}
 				} else {
 				
 					/* If not looking for key, store buffer as value */
-					if (bencode->head_pointer != (void *)-1) {
+					if (bencode->head_pointer != (void *)IGNORE_FLAG) {
 						strcpy((char *)bencode->head_pointer, bencode->buffer);
 					}
 					bencode->head_pointer = NULL;
@@ -268,14 +268,17 @@ int list(struct bencode_module *bencode, FILE *file) {
 					return DATA_LENGTH_EXCEEDED;
 				}
 
-				/* Extending size of pointer array if necessary */	
-				if (*bencode->index_pointer == *bencode->size_pointer) {
-					*bencode->size_pointer *= 2;
-					bencode->head_pointer = realloc((char **)bencode->head_pointer, *bencode->size_pointer);
-				}
+				if (bencode->head_pointer != (void *)IGNORE_FLAG) {
 
-				((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)malloc(BUFFER_SIZE * sizeof(char));
-				strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], bencode->buffer);
+					/* Extending size of pointer array if necessary */	
+					if (*bencode->index_pointer == *bencode->size_pointer) {
+						*bencode->size_pointer *= 2;
+						bencode->head_pointer = realloc((char **)bencode->head_pointer, *bencode->size_pointer);
+					}
+
+					((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)malloc(BUFFER_SIZE * sizeof(char));
+					strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], bencode->buffer);
+				}
 /*	
 				if (bencode->info != NULL) {
 				bencode->info->files[*bencode->index_pointer]->file_path_index = bencode->info->files[*bencode->index_pointer]->file_path_index + 1;
@@ -310,7 +313,7 @@ int integer(struct bencode_module *bencode, FILE *file) {
 			
 			if (result == 1) {
 				bencode->buffer[buffer_index] = '\0';
-				if (bencode->head_pointer != (void *)-1) *(int *)bencode->head_pointer = atoi(bencode->buffer);
+				if (bencode->head_pointer != (void *)IGNORE_FLAG) *(int *)bencode->head_pointer = atoi(bencode->buffer);
 				return 0;
 			}
 		} else {
@@ -356,7 +359,7 @@ void printBencode(struct bencode_module *bencode) {
     if (bencode->encoding != NULL) printf("Encoding: %s\n\n", bencode->encoding);
     for (int i = 0; i < bencode->info_file_index; i++) {
         for (int j = 0; j < bencode->info->files[i]->file_path_index; j++) {
-            printf("Info File %d: Length: %d Path: %s\n", i, *bencode->info->files[i]->length, bencode->info->files[i]->path[j]);
+            printf("Info File %d: Length: %ld Path: %s\n", i, *bencode->info->files[i]->length, bencode->info->files[i]->path[j]);
         }
     }
     if (bencode->info->name != NULL) printf("\nName: %s\n", bencode->info->name);
