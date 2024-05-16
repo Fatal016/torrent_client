@@ -24,7 +24,7 @@ struct bencode_info {
 struct bencode_module {
 	
 	/**************************/
-	/*** Bencode components ***/
+	/*** Bencode Components ***/
 	/**************************/
 
 	char* announce;

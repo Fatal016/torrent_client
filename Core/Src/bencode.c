@@ -5,8 +5,8 @@
 #include "../Inc/bencode.h"
 
 #define BUFFER_SIZE 128
-#define ANNOUNCE_LIST_SIZE 128
-#define INFO_FILE_SIZE 8
+#define ANNOUNCE_LIST_SIZE 256
+#define INFO_FILE_SIZE 128
 #define FILE_PATH_SIZE 1
 #define URL_LIST_SIZE 1
 
@@ -139,7 +139,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 					
 					} else if (strcmp(bencode->buffer, "announce-list") == 0) {
 				
-						bencode->announce_list = (char **)malloc(ANNOUNCE_LIST_SIZE * sizeof(char *));
+						bencode->announce_list = (char **)malloc(bencode->announce_list_size * sizeof(char *));
 						bencode->head_pointer = (void *)bencode->announce_list;
 						bencode->index_pointer = &bencode->announce_list_index;
 						bencode->size_pointer = &bencode->announce_list_size;
@@ -171,7 +171,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 					} else if (strcmp(bencode->buffer, "files") == 0) {
 							
-						bencode->info->files = (struct info_file **)malloc(INFO_FILE_SIZE * sizeof(struct info_file *));
+						bencode->info->files = (struct info_file **)malloc(bencode->info_file_size * sizeof(struct info_file *));
 
 					} else if (strcmp(bencode->buffer, "length") == 0) {
 							
@@ -189,7 +189,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 					} else if (strcmp(bencode->buffer, "path") == 0) {
 						
 						bencode->info->files[bencode->info_file_index]->file_path_index = 0;
-						bencode->info->files[bencode->info_file_index]->path = (char **)malloc(FILE_PATH_SIZE * sizeof(char *));
+						bencode->info->files[bencode->info_file_index]->path = (char **)malloc(bencode->file_path_size * sizeof(char *));
 						bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->path;
 						bencode->index_pointer = &bencode->info->files[bencode->info_file_index]->file_path_index;
 						bencode->info_file_index++;
@@ -211,14 +211,10 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						
 					} else if (strcmp(bencode->buffer, "url-list") == 0) {
 							
-						bencode->url_list = (char **)malloc(URL_LIST_SIZE * sizeof(char *));
+						bencode->url_list = (char **)malloc(bencode->url_list_size * sizeof(char *));
 						bencode->head_pointer = (void *)bencode->url_list;
 						bencode->index_pointer = &bencode->url_list_index;
 					
-					/* For testing purposes */
-					} else if (strcmp(bencode->buffer, "profiles") == 0) {
-						bencode->head_pointer = (void *)IGNORE_FLAG;
-
 					} else {
 						/* Setting pointer to effective NULL value to then have unexpected values ignored */
 						bencode->head_pointer = (void *)IGNORE_FLAG;	
@@ -258,7 +254,8 @@ int list(struct bencode_module *bencode, FILE *file) {
 			if (result == 1) {
 				return 2;
 			}
-		
+			
+			buffer_index = -1;
 		} else {
 			if (file_char == ':') {
 				bencode->buffer[buffer_index] = '\0';
@@ -283,9 +280,9 @@ int list(struct bencode_module *bencode, FILE *file) {
 					((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)malloc(BUFFER_SIZE * sizeof(char));
 					strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], bencode->buffer);
 				
-					buffer_index = -1;
 					(*bencode->index_pointer)++;
 				}
+				buffer_index = -1;
 			} else {
 				bencode->buffer[buffer_index] = file_char;
 			}
