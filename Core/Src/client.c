@@ -41,7 +41,22 @@ int main(int argc, char **argv) {
 	
 	char *filepath = argv[1];
 
-	struct bencode_module bencode;
+	struct bencode_module bencode = {
+		.announce = NULL,
+		.announce_list = NULL,
+		.comment = NULL,
+		.created_by = NULL,
+		.encoding = NULL,
+		.info = NULL,
+		.url_list = NULL,
+		.head_pointer = NULL,
+		.size_pointer = NULL,
+		.announce_list_index = 0,
+		.info_file_index = 0,
+		.file_path_index = 0,
+		.url_list_index = 0
+	};
+	
 	parse_single(filepath, &bencode);
 	return 0;
 

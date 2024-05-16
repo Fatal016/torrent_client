@@ -10,8 +10,6 @@
 #define FILE_PATH_SIZE 1
 #define URL_LIST_SIZE 1
 
-#define THREAD_NUM 1
-
 struct bencode_module* parse_single(char *filepath, struct bencode_module* bencode) {
 
 	FILE *file = fopen(filepath, "r");
@@ -19,21 +17,7 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 	int result;
 	id type;
 
-	/* Bencode struct initialization */
-	bencode->announce 				= NULL;
-	bencode->announce_list 			= NULL;
-	bencode->comment 				= NULL;
-	bencode->created_by 			= NULL;
-	bencode->creation_date 			= NULL;
-	bencode->encoding 				= NULL;
-	bencode->info 					= NULL;
-	bencode->url_list 				= NULL;
-	bencode->head_pointer 			= NULL;
-	bencode->size_pointer			= NULL;
-	bencode->announce_list_index	= 0;
-	bencode->info_file_index 		= 0;
-	bencode->file_path_index 		= 0;
-	bencode->url_list_index 		= 0;
+	/* Struct initialization */
 	bencode->buffer_size 			= BUFFER_SIZE;
 	bencode->announce_list_size		= ANNOUNCE_LIST_SIZE;
 	bencode->info_file_size			= INFO_FILE_SIZE;
