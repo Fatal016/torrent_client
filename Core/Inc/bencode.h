@@ -1,4 +1,10 @@
 #define DATA_LENGTH_EXCEEDED -2
+#define CONVERSION_FAILED -3
+#define CONVERSION_SUCCESS 0
+
+#define PARSE_SUCCESS 0
+
+
 #define IGNORE_FLAG -1
 
 
@@ -15,8 +21,8 @@ struct info_file {
 struct bencode_info {
 	struct info_file** files;
 	char* name;
-	int* length;
-	int* piece_length;
+	long long int* length;
+	long long int* piece_length;
 	char* pieces;
 };
 
@@ -31,7 +37,7 @@ struct bencode_module {
 	char** announce_list;
 	char* comment;
 	char* created_by;
-	int* creation_date;
+	long long int* creation_date;
 	char* encoding;
 	struct bencode_info *info;	
 	char** url_list;
@@ -82,6 +88,10 @@ int end(struct bencode_module* __attribute__((unused)), FILE* __attribute__((unu
 
 /* Root function for parsing .torrent file */
 struct bencode_module* parse_single(char*, struct bencode_module*);
+
+int verifyInt(char*, long long int*);
+
+
 
 /* Tools */
 void printBencode(struct bencode_module *bencode);

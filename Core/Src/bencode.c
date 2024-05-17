@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
 
 #include "../Inc/bencode.h"
 
@@ -9,6 +11,10 @@
 #define INFO_FILE_SIZE 128
 #define FILE_PATH_SIZE 1
 #define URL_LIST_SIZE 1
+
+#define NOT_A_TYPE NULL
+#define BUFFER_EXCEEDED -1
+#define END_OF_TYPE 1
 
 struct bencode_module* parse_single(char *filepath, struct bencode_module* bencode) {
 
@@ -40,15 +46,13 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 		return NULL;
 	}
 
-	/* Allocating variable-size buffer for reading in and evaluating file contents */
+	/* Allocating buffer for reading in and evaluating file contents */
 	bencode->buffer = (char *)malloc(bencode->buffer_size * sizeof(char));
 
 	/* Running function pointed to by function pointer 'type' */
 	result = type(bencode, file);
 	
-	/* Should implement PAPI for time optimizations/tracking */
 	if (result == 0) {
-		printf("Dictionary parsed in ... seconds!\n");
 		printBencode(bencode);
 		return bencode;
 	} else {
@@ -61,7 +65,7 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 				break;
 		}		
 
-		printBencode(bencode);
+		//printBencode(bencode);
 		return NULL;
 	}
 }
@@ -69,7 +73,9 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 int dictionary(struct bencode_module *bencode, FILE *file) {
 	
 	int buffer_index, result;
-	size_t length, return_size;
+	unsigned long int length;
+	size_t return_size;
+
 	char file_char = '\0';
 	id type;
 
@@ -92,8 +98,22 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 			if (file_char == ':') {
 
 				bencode->buffer[buffer_index] = '\0';
-				length = atoi(bencode->buffer);		
+			
+				if (bencode->buffer[0] == '-') {
+        			fprintf(stderr, "Error: Negative input is not valid for unsigned long conversion\n");
+        			return CONVERSION_FAILED;
+   				}
+
+				errno = 0;
+				length = strtoul(bencode->buffer, NULL, 10);
 				
+				/* Error handling for str -> data segment length */
+				if (errno != 0) {
+					perror("strtoul");		
+					fprintf(stderr, "Error: Unable to interpret data segment length\n");
+					return CONVERSION_FAILED;
+				}
+
 				/* Expanding buffer to accomodate item length */
 				if (length > bencode->buffer_size) {	
 					
@@ -140,7 +160,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 					
 					} else if (strcmp(bencode->buffer, "creation date") == 0) {
 							
-						bencode->creation_date = (int *)malloc(sizeof(int));
+						bencode->creation_date = (long long int *)malloc(sizeof(long long int));
 						bencode->head_pointer = (void *)bencode->creation_date;
 
 					} else if (strcmp(bencode->buffer, "encoding") == 0) {
@@ -166,7 +186,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 							bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->length;
 						} else {
 							/* Single file contents */
-							bencode->info->length = (int *)malloc(sizeof(int));
+							bencode->info->length = (long long int *)malloc(sizeof(long long int));
 							bencode->head_pointer= (void *)bencode->info->length;
 						}						
 
@@ -185,7 +205,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						
 					} else if (strcmp(bencode->buffer, "piece length") == 0) {
 						
-						bencode->info->piece_length = (int *)malloc(sizeof(int));
+						bencode->info->piece_length = (long long int *)malloc(sizeof(long long int));
 						bencode->head_pointer = (void *)bencode->info->piece_length;
 						
 					} else if (strcmp(bencode->buffer, "pieces") == 0) {
@@ -277,36 +297,52 @@ int list(struct bencode_module *bencode, FILE *file) {
 
 int integer(struct bencode_module *bencode, FILE *file) {
 
-	int buffer_index;
-	int result;
-	
-	char file_char = '\0';
-
+	unsigned int result, buffer_index = 0;
+	char file_char;
 	id type;
 
-	for (buffer_index = 0; buffer_index < BUFFER_SIZE; buffer_index++) {
+	while (buffer_index < bencode->buffer_size) {
 		file_char = fgetc(file);
 		
+		/* Identify if character signifies beginning of type */
 		type = identify(file_char);
 
 		if (type != NULL) {
+	
+			/* Running function to parse detected type */
 			result = type(bencode, file);
 			
-			if (result == 1) {
+			/* If captured character which signifies end of type -> store value */
+			if (result == END_OF_TYPE) {
 				bencode->buffer[buffer_index] = '\0';
-				if (bencode->head_pointer != (void *)IGNORE_FLAG) *(int *)bencode->head_pointer = atoi(bencode->buffer);
-				return 0;
+				if (bencode->head_pointer != (void *)IGNORE_FLAG) {
+					return verifyInt(bencode->buffer, bencode->head_pointer);	
+				}
 			}
 		} else {
 			bencode->buffer[buffer_index] = file_char;
+			buffer_index++;
 		}
 	}
-	printf("Buffer exceeded!\n");
-	return -1;	
+	return BUFFER_EXCEEDED;
+}
+
+int verifyInt(char *input, long long int *output) {
+		
+	long long int val = 0;
+	errno = 0;
+
+    val = strtoull(input, NULL, 10);
+    if ((errno == ERANGE && (val == LLONG_MAX || val == LLONG_MIN)) || (errno != 0 && val == 0)) {
+		perror("strtol");
+        return CONVERSION_FAILED;
+   	}
+    *(long long int *)output = val;
+	return CONVERSION_SUCCESS;
 }
 
 int end(struct bencode_module *bencode __attribute__((unused)), FILE *file __attribute__((unused))) {
-	return 1;
+	return END_OF_TYPE;
 }
 
 id identify(char c) {
@@ -324,10 +360,11 @@ id identify(char c) {
             return end;
             break;
         default:
-            return NULL;
+            return NOT_A_TYPE;
             break;
     }
 }
+
 
 void printBencode(struct bencode_module *bencode) {
     printf("Announce: %s\n\n", bencode->announce);
@@ -336,7 +373,7 @@ void printBencode(struct bencode_module *bencode) {
     }
     if (bencode->comment != NULL) printf("\nComment: %s\n", bencode->comment);
     if (bencode->created_by != NULL) printf("Created By: %s\n", bencode->created_by);
-    if (bencode->creation_date != NULL) printf("Creation Date: %d\n", *bencode->creation_date);
+    if (bencode->creation_date != NULL) printf("Creation Date: %lld\n", *bencode->creation_date);
     if (bencode->encoding != NULL) printf("Encoding: %s\n\n", bencode->encoding);
     for (int i = 0; i < bencode->info_file_index; i++) {
         for (int j = 0; j < bencode->info->files[i]->file_path_index; j++) {
@@ -344,7 +381,7 @@ void printBencode(struct bencode_module *bencode) {
         }
     }
     if (bencode->info->name != NULL) printf("\nName: %s\n", bencode->info->name);
-    if (bencode->info->piece_length != NULL) printf("Piece Length: %d\n", *bencode->info->piece_length);
+    if (bencode->info->piece_length != NULL) printf("Piece Length: %lld\n", *bencode->info->piece_length);
     if (bencode->info->pieces != NULL) printf("Pieces: %s\n\n", bencode->info->pieces);
     
 	if (bencode->url_list != NULL) {
