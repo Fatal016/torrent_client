@@ -8,7 +8,6 @@
 #define IGNORE_FLAG -1
 
 
-
 /* Struct for bencode -> info -> files */
 struct info_file {
 	unsigned long int* length;
@@ -71,7 +70,7 @@ struct bencode_module {
 
 	/* Input buffer for filestream */
 	char* buffer;
-	size_t buffer_size;
+	long long int buffer_size;
 };
 
 /* Serves as template for return-type of 'identify' */
@@ -89,7 +88,7 @@ int end(struct bencode_module* __attribute__((unused)), FILE* __attribute__((unu
 /* Root function for parsing .torrent file */
 struct bencode_module* parse_single(char*, struct bencode_module*);
 
-int verifyInt(char*, long long int*);
+int verify_int(char*, long long int*);
 
 
 

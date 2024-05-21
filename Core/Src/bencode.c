@@ -9,7 +9,7 @@
 #define BUFFER_SIZE 128
 #define ANNOUNCE_LIST_SIZE 256
 #define INFO_FILE_SIZE 128
-#define FILE_PATH_SIZE 1
+#define FILE_PATH_SIZE 10
 #define URL_LIST_SIZE 1
 
 #define NOT_A_TYPE NULL
@@ -18,7 +18,6 @@
 
 struct bencode_module* parse_single(char *filepath, struct bencode_module* bencode) {
 
-	FILE *file = fopen(filepath, "r");
 	char file_char;
 	int result;
 	id type;
@@ -29,6 +28,8 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 	bencode->info_file_size			= INFO_FILE_SIZE;
 	bencode->file_path_size			= FILE_PATH_SIZE;
 	bencode->url_list_size			= URL_LIST_SIZE;
+	
+	FILE *file = fopen(filepath, "r");
 
 	/* Error checking for existence of file */
 	if (file == NULL) {
@@ -72,66 +73,58 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 
 int dictionary(struct bencode_module *bencode, FILE *file) {
 	
-	int buffer_index, result;
-	unsigned long int length;
-	size_t return_size;
-
-	char file_char = '\0';
+	unsigned int result, buffer_index = 0;
+	char file_char;
 	id type;
 
-	for (buffer_index = 0; buffer_index < (int)bencode->buffer_size; buffer_index++) {
+	unsigned int return_size;
+	long long int length;
+
+	while (buffer_index < bencode->buffer_size) {
 
 		file_char = fgetc(file);
+
 		type = identify(file_char);
 		
 		if (type != NULL) {
 			result = type(bencode, file);
 
 			/* If end of the dictionary, return */
-			if (result == 1) {
-				return 0;
+			if (result == END_OF_TYPE) {
+				return PARSE_SUCCESS;
 			}
 
 			bencode->head_pointer = NULL;
-			buffer_index = -1;
+			buffer_index = 0;
 		} else {
 			if (file_char == ':') {
-
 				bencode->buffer[buffer_index] = '\0';
-			
-				if (bencode->buffer[0] == '-') {
-        			fprintf(stderr, "Error: Negative input is not valid for unsigned long conversion\n");
-        			return CONVERSION_FAILED;
-   				}
 
-				errno = 0;
-				length = strtoul(bencode->buffer, NULL, 10);
-				
-				/* Error handling for str -> data segment length */
-				if (errno != 0) {
-					perror("strtoul");		
-					fprintf(stderr, "Error: Unable to interpret data segment length\n");
-					return CONVERSION_FAILED;
-				}
+				result = verify_int(bencode->buffer, &length);
+
+				if (result != CONVERSION_SUCCESS) {
+					printf("Parse error: Length of data element could not be determined.\nPlease verify the integrity of your .torrent file.\n");
+                    return PARSE_FAILURE;
+				}			
 
 				/* Expanding buffer to accomodate item length */
 				if (length > bencode->buffer_size) {	
 					
 					/* Doubling buffer size until it can fit data */
-					/* Should implement cap on maximum buffer_size otherwise risk leak */
-					while (length > bencode->buffer_size) bencode->buffer_size = bencode->buffer_size * 2;	
+					while (length > bencode->buffer_size) {
+						bencode->buffer_size = bencode->buffer_size * 2;	
+					}
 					bencode->buffer = realloc(bencode->buffer, bencode->buffer_size);
 				}
 
 				return_size = fread(bencode->buffer, 1, length, file);
+				bencode->buffer[length] = '\0';
 				
 				/* Error handling for item read */
 				if (return_size != length) {	
 					printf("Parse error: Could not capture full data segment. Please verify the integrity of your .torrent file\n");
 					return DATA_LENGTH_EXCEEDED;
 				}
-
-				bencode->buffer[length] = '\0';
 
 				/* If member of struct to place data hasn't been set, we need to set it */
 				if (bencode->head_pointer == NULL) {
@@ -220,7 +213,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						bencode->index_pointer = &bencode->url_list_index;
 					
 					} else {
-						/* Setting pointer to effective NULL value to then have unexpected values ignored */
+						/* Setting pointer to effective NULL value to then have unexpected key-value pairs ignored */
 						bencode->head_pointer = (void *)IGNORE_FLAG;	
 					}
 				} else {
@@ -231,21 +224,25 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 						bencode->head_pointer = NULL;
 					}
 				}
-				buffer_index = -1;	
+
+				buffer_index = 0;	
 			} else {
 				bencode->buffer[buffer_index] = file_char;
+				buffer_index++;
 			}
 		}
 	}
-	return 0;
+	return BUFFER_EXCEEDED;
 }
 
 int list(struct bencode_module *bencode, FILE *file) {
 	
-	unsigned int result, return_size, buffer_index = 0;
-	long long int length;
-	char file_char = '\0';
+	unsigned int result, buffer_index = 0;
+	char file_char;
 	id type;
+	
+	unsigned int return_size;
+	long long int length;
 
 	while (buffer_index < bencode->buffer_size)	{
 		file_char = fgetc(file);
@@ -267,7 +264,7 @@ int list(struct bencode_module *bencode, FILE *file) {
 				
 				result = verify_int(bencode->buffer, &length);
 				
-				if (result != 0) {
+				if (result != CONVERSION_SUCCESS) {
 					printf("Parse error: Length of data element could not be determined.\nPlease verify the integrity of your .torrent file.\n");
 					return PARSE_FAILURE;
 				}
@@ -282,11 +279,14 @@ int list(struct bencode_module *bencode, FILE *file) {
 
 				if (bencode->head_pointer != (void *)IGNORE_FLAG) {
 
-					/* Extending size of pointer array if necessary */	
+					/* Extending size of pointer array if necessary. */
+					/* Not functional as realloc not preserving properly... */	
+					/*
 					if (*bencode->index_pointer == *bencode->size_pointer) {
 						*bencode->size_pointer *= 2;
 						bencode->head_pointer = realloc((char **)bencode->head_pointer, *bencode->size_pointer);
 					}
+					*/
 
 					((char **)bencode->head_pointer)[*bencode->index_pointer] = (char *)malloc(BUFFER_SIZE * sizeof(char));
 					strcpy(((char **)bencode->head_pointer)[*bencode->index_pointer], bencode->buffer);
@@ -321,11 +321,19 @@ int integer(struct bencode_module *bencode, FILE *file) {
 			/* Running function to parse detected type */
 			result = type(bencode, file);
 			
-			/* If captured character which signifies end of type -> store value */
+			/* If captured character which signifies end of type, check and store value */
 			if (result == END_OF_TYPE) {
 				bencode->buffer[buffer_index] = '\0';
 				if (bencode->head_pointer != (void *)IGNORE_FLAG) {
-					return verify_int(bencode->buffer, bencode->head_pointer);	
+					result = verify_int(bencode->buffer, bencode->head_pointer);	
+
+					/* Error checking for conversion */					
+					if (result != CONVERSION_SUCCESS) {
+						printf("Parse error: Length of data element could not be determined.\nPlease verify the integrity of your .torrent file.\n");
+						return PARSE_FAILURE;
+					}
+
+					return PARSE_SUCCESS;
 				}
 			}
 		} else {
@@ -336,13 +344,6 @@ int integer(struct bencode_module *bencode, FILE *file) {
 	return BUFFER_EXCEEDED;
 }
 
-/*
- * Function: verify_int
- * -------------------
- * Converts string to integer and checks whether output is a valid and clean integer
- * 
- * returns: Error code associated with whether valid integer was determined
- */
 int verify_int(char *input, long long int *output) {
 		
 	long long int val = 0;
