@@ -242,34 +242,41 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 int list(struct bencode_module *bencode, FILE *file) {
 	
-	int buffer_index, result;
-	size_t return_size, length;
+	unsigned int result, return_size, buffer_index = 0;
+	long long int length;
 	char file_char = '\0';
 	id type;
-	
-	for (buffer_index = 0; buffer_index < (int)bencode->buffer_size; buffer_index++) {
+
+	while (buffer_index < bencode->buffer_size)	{
 		file_char = fgetc(file);
 
 		type = identify(file_char);
 		
 		if (type != NULL) {
+			
 			result = type(bencode, file);
 			
-			if (result == 1) {
-				return 2;
+			if (result == END_OF_TYPE) {
+				return PARSE_SUCCESS;
 			}
 			
-			buffer_index = -1;
+			buffer_index = 0;
 		} else {
 			if (file_char == ':') {
 				bencode->buffer[buffer_index] = '\0';
-				length = atoi(bencode->buffer);
 				
+				result = verify_int(bencode->buffer, &length);
+				
+				if (result != 0) {
+					printf("Parse error: Length of data element could not be determined.\nPlease verify the integrity of your .torrent file.\n");
+					return PARSE_FAILURE;
+				}
+
 				return_size = fread(bencode->buffer, 1, length, file);
 				bencode->buffer[length] = '\0';
 
 				if (return_size != length) {
-					printf("Parse error: Could not capture full segment. Verify the integrity of your .torrent file\n");
+					printf("Parse error: Could not capture full segment.\nPlease verify the integrity of your .torrent file.\n");
 					return DATA_LENGTH_EXCEEDED;
 				}
 
@@ -286,13 +293,15 @@ int list(struct bencode_module *bencode, FILE *file) {
 				
 					(*bencode->index_pointer)++;
 				}
-				buffer_index = -1;
+
+				buffer_index = 0;
 			} else {
 				bencode->buffer[buffer_index] = file_char;
+				buffer_index++;
 			}
 		}
 	}
-	return 2;
+	return BUFFER_EXCEEDED;
 }
 
 int integer(struct bencode_module *bencode, FILE *file) {
@@ -316,7 +325,7 @@ int integer(struct bencode_module *bencode, FILE *file) {
 			if (result == END_OF_TYPE) {
 				bencode->buffer[buffer_index] = '\0';
 				if (bencode->head_pointer != (void *)IGNORE_FLAG) {
-					return verifyInt(bencode->buffer, bencode->head_pointer);	
+					return verify_int(bencode->buffer, bencode->head_pointer);	
 				}
 			}
 		} else {
@@ -327,17 +336,28 @@ int integer(struct bencode_module *bencode, FILE *file) {
 	return BUFFER_EXCEEDED;
 }
 
-int verifyInt(char *input, long long int *output) {
+/*
+ * Function: verify_int
+ * -------------------
+ * Converts string to integer and checks whether output is a valid and clean integer
+ * 
+ * returns: Error code associated with whether valid integer was determined
+ */
+int verify_int(char *input, long long int *output) {
 		
 	long long int val = 0;
 	errno = 0;
 
+	/* Performing strtoull on string and then checking errno and output buffers to check if valid integer */
     val = strtoull(input, NULL, 10);
     if ((errno == ERANGE && (val == LLONG_MAX || val == LLONG_MIN)) || (errno != 0 && val == 0)) {
 		perror("strtol");
         return CONVERSION_FAILED;
    	}
+
+	/* Setting value of second parameter to parsed value of integer */
     *(long long int *)output = val;
+
 	return CONVERSION_SUCCESS;
 }
 

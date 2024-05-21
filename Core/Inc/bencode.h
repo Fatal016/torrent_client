@@ -3,7 +3,7 @@
 #define CONVERSION_SUCCESS 0
 
 #define PARSE_SUCCESS 0
-
+#define PARSE_FAILURE -1
 
 #define IGNORE_FLAG -1
 
