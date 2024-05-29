@@ -397,9 +397,11 @@ void printBencode(struct bencode_module *bencode) {
     if (bencode->creation_date != NULL) printf("Creation Date: %lld\n", *bencode->creation_date);
     if (bencode->encoding != NULL) printf("Encoding: %s\n\n", bencode->encoding);
     for (int i = 0; i < bencode->info_file_index; i++) {
-        for (int j = 0; j < bencode->info->files[i]->file_path_index; j++) {
-            printf("Info File %d: Length: %ld Path: %s\n", i, *bencode->info->files[i]->length, bencode->info->files[i]->path[j]);
+        printf("Info File: %d\n\tLength: %ld\n\tPath: ", i, *bencode->info->files[i]->length);
+		for (int j = 0; j < bencode->info->files[i]->file_path_index; j++) {
+            printf("/%s", bencode->info->files[i]->path[j]);
         }
+		printf("\n\n");
     }
     if (bencode->info->name != NULL) printf("\nName: %s\n", bencode->info->name);
     if (bencode->info->piece_length != NULL) printf("Piece Length: %lld\n", *bencode->info->piece_length);

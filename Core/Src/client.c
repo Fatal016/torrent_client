@@ -3,9 +3,13 @@
 #include <string.h>
 #include <errno.h>
 
+#include <pthread.h>
+
 #include <netdb.h>
 #include <sys/socket.h>
 #include <libwebsockets.h>
+
+
 
 #include "../Inc/bencode.h"
 #include "../Inc/client.h"
@@ -28,16 +32,20 @@ int main(int argc, char **argv) {
 	//unsigned int serverlen;
 	//char hostname_start[256], hostname_end[256], port_start[256], port_end[256];
 	//char hostname[256], port[5];
-	char *hostname, *port;
 
+	struct tracker_properties props;
+	props.protocol = malloc(sizeof(char) * 128);
+	props.hostname = malloc(sizeof(char) * 128);
+	props.port = malloc(sizeof(char) * 128);
+	props.path = malloc(sizeof(char) * 128);
 
 	if (argc != 2) {
 		printf("passed wrong amount\n");
 		exit(-1);
 	}
 	
-	hostname = (char *)malloc(HOSTNAME_SIZE * sizeof(char));
-	port = (char *)malloc(PORT_SIZE * sizeof(char));
+//	hostname = (char *)malloc(HOSTNAME_SIZE * sizeof(char));
+//	port = (char *)malloc(PORT_SIZE * sizeof(char));
 	
 	char *filepath = argv[1];
 
@@ -58,65 +66,122 @@ int main(int argc, char **argv) {
 	};
 	
 	parse_single(filepath, &bencode);
-	return 0;
 
-	
 	/* Opening a socket file descriptor */
 	socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (socket_fd < 0) {
 		fprintf(stderr, "Error socket: %s\n", strerror(errno));
 	}
 
-	result = getTracker(&bencode, hostname, port, server);
+	result = getTracker(&bencode, server, &props);
 
-	if (result == 0) {
-		printf("Good!\n");
+	if (result == 1) {
+		return 1;
+	} else {
+		return 0;
 	}
-	printf("Connecting to server %s port %d\n", hostname, atoi(port));
-
-	return 1;
 }
 
-int getTracker(struct bencode_module *bencode, char *hostname, char *port, struct hostent *server) {
-	
-	char *hostname_start = NULL;
-	char *hostname_end = NULL;
-	char *port_start = NULL;
-	char *port_end = NULL;
 
-	int result;	
+
+
+
+int getTracker(struct bencode_module *bencode, struct hostent *server, struct tracker_properties *props) {
 	
+	int tracker, protocol_index;	
+	ptrdiff_t length = 0;
+	
+	char *protocol_end;
+	char *hostname_start;
+	char *hostname_end;
+	
+	char *port_start;
+	char *port_end;
+	char *path_start;
+
+	char valid_protocols[3][5] = { 
+		"udp", 
+		"http", 
+		"https"
+	};
+	int len_protocols = 3;	
+
+	/* Ignoring announce if announce_list present since index 1 in list will be announce anyway */
 	if (bencode->announce_list != NULL) {
-		for (int tracker = 0; tracker < bencode->announce_list_index; tracker++) {
+		for (tracker = 0; tracker < bencode->announce_list_index; tracker++) {
 
-			memset(hostname, 0, HOSTNAME_SIZE);
-			memset(port, 0, PORT_SIZE);
-		
-			result = parseHostname(bencode->announce_list[tracker], &hostname_start, &hostname_end, &hostname);
+			length = 0;
+
+			/* Capturing protocol of tracker */	
+			protocol_end = strstr(bencode->announce_list[tracker], "://");
 			
-			/* Error handling for hostname parsing */
-			if (result == 1) {
-				printf("Error in parsing %s", bencode->announce_list[tracker]);
-				return 1;
+			/* Error checking for protocol detection */
+			if (protocol_end == NULL) return MALFORMED_PROTOCOL;
+
+			length = protocol_end - bencode->announce_list[tracker];
+			
+			strncpy(props->protocol, bencode->announce_list[tracker], length);
+			props->protocol[length] = '\0';
+		
+			/* Checking if valid protocol detected */	
+			for (protocol_index = 0; protocol_index < len_protocols; protocol_index++) {
+				if (strcmp(props->protocol, valid_protocols[protocol_index]) == 0) {
+					break;
+				}
+			}
+			if (protocol_index == len_protocols) return INVALID_PROTOCOL;
+
+			hostname_start = protocol_end + 3*sizeof(char);	
+			hostname_end = strstr(hostname_start, ":");
+			
+			if (hostname_end == NULL) {
+				strncpy(props->hostname, "NULL\0", 4);
+				hostname_end = strstr(hostname_start, "/") - sizeof(char);
+
+				if (hostname_end == NULL) {
+					hostname_end = strstr(hostname_start, "\0") - sizeof(char);
+				}
+			} else {
+				length = hostname_end - hostname_start;
+				strncpy(props->hostname, hostname_start, length);
+				props->hostname[length] = '\0';
+			}			
+
+			//printf("Hostname: %s\n", props->hostname);
+
+			port_start = hostname_end + sizeof(char);
+			port_end = strstr(port_start, "/");
+			if (port_end == NULL) {
+				
+				/* Needs fixing */
+				port_end = &bencode->announce_list[tracker][strlen(bencode->announce_list[tracker]) - 1];
 			}
 
-			/* Check for existence/accessibility of tracker */
-			testTracker(server, hostname);
+			length = port_end - port_start;
+			
+			strncpy(props->port, port_start, length);
+			props->port[length] = '\0';
 
-			result = parsePort(bencode->announce_list[tracker], &hostname_end, &port_start, &port_end, &port);
+			length = &bencode->announce_list[tracker][strlen(bencode->announce_list[tracker])] - port_end;
+			strncpy(props->path, port_end, length);
+
+			printf("Tracker: %d\n\tProtocol: %s\n\tHostname: %s\n\tPort: %s\n\tPath: %s\n", tracker, props->protocol, props->hostname, props->port, props->path);
+
+			/* Check for existence/accessibility of tracker */
+	//		testTracker(server, hostname);
 		}
 			
 	} else {
-		result = parseHostname(bencode->announce, &hostname_start, &hostname_end, &hostname);
+//		result = parseHostname(bencode->announce, &hostname_start, &hostname_end, &hostname);
 
-		if (result == 1) {
-			printf ("Error in parsing %s\n", bencode->announce);
-			return 1;
-		}
+//		if (result == 1) {
+//			printf ("Error in parsing %s\n", bencode->announce);
+//			return 1;
+//		}
 
-		testTracker(server, hostname);
+//		testTracker(server, hostname);
 
-		result = parsePort(bencode->announce, &hostname_end, &port_start, &port_end, &port);
+//		result = parsePort(bencode->announce, &hostname_end, &port_start, &port_end, &port);
 	}
 	
 	return 0;
