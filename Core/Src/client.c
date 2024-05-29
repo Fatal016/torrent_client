@@ -97,7 +97,6 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 	
 	char *port_start;
 	char *port_end;
-	char *path_start;
 
 	char valid_protocols[3][5] = { 
 		"udp", 
@@ -135,7 +134,7 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 			hostname_end = strstr(hostname_start, ":");
 			
 			if (hostname_end == NULL) {
-				strncpy(props->hostname, "NULL\0", 4);
+				strncpy(props->hostname, "NULL\0", 5);
 				hostname_end = strstr(hostname_start, "/") - sizeof(char);
 
 				if (hostname_end == NULL) {
@@ -168,7 +167,7 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 			printf("Tracker: %d\n\tProtocol: %s\n\tHostname: %s\n\tPort: %s\n\tPath: %s\n", tracker, props->protocol, props->hostname, props->port, props->path);
 
 			/* Check for existence/accessibility of tracker */
-	//		testTracker(server, hostname);
+			testTracker(server, props->hostname);
 		}
 			
 	} else {
@@ -200,59 +199,4 @@ int testTracker(struct hostent *server, char *hostname) {
 
 		return 0;
 	}
-}
-
-int parseHostname(char *url, char **hostname_start, char **hostname_end, char **hostname) {
-	
-	*hostname_start = strstr(url, "//");
-	
-	/* Error handling for lack of http[s]// in URL */
-	if (hostname_start == NULL) {
-		printf("Error in parsing URL: No '//' present\n");
-		return 1;
-	}	
-
-	*hostname_end = strstr(*hostname_start + 2, ":");
-	
-	/* Error handling for lack of port specification in URL */
-	/* Assuming wss as of now */
-	if (*hostname_end == NULL) {
-		strncpy(*hostname, *hostname_start + 2, strlen(url) - 2);
-		return 0;	
-	}	
-
-	// Checking length constraints
-	/*
-	if ((&hostname_end - &hostname_start - 2) - (hostname_start + 2) > 255) {
-		printf("Error in parsing URL: Hostname exceeds maximum possible length\n");
-		return 1;
-	}	
-	*/
-
-	strncpy(*hostname, *hostname_start + 2, *hostname_end - *hostname_start - 2);
-	
-	return 0;	
-}
-
-int parsePort(char *url, char **hostname_end, char **port_start, char **port_end, char **port) {
-
-	/* If wss url */
-	if (*hostname_end == '\0') {
-		strcpy(*port, "NULL");
-		return 0;
-	}
-
-	/* Parsing port */
-	*port_start = *hostname_end + 1;
-	
-	*port_end = strstr(*hostname_end, "/");
-
-	/* Capturing until end of url if no filepath is listed */
-	if (*port_end == NULL) {
-		*port_end = url + strlen(url);
-	}
-
-	strncpy(*port, *port_start, *port_end - *port_start);
-	
-	return 0;
 }
