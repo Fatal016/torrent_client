@@ -23,8 +23,7 @@
 int main(int argc, char **argv) {
 	
 	int result;
-	int socket_fd;
-	struct hostent *server = NULL;
+	struct hostent server;
 	//struct sockaddr_in server_addr;
 	//char buffer[BUFFER_SIZE];
 	//int n;
@@ -67,13 +66,8 @@ int main(int argc, char **argv) {
 	
 	parse_single(filepath, &bencode);
 
-	/* Opening a socket file descriptor */
-	socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (socket_fd < 0) {
-		fprintf(stderr, "Error socket: %s\n", strerror(errno));
-	}
 
-	result = getTracker(&bencode, server, &props);
+	result = getTracker(&bencode, &server, &props);
 
 	if (result == 1) {
 		return 1;
@@ -196,13 +190,83 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 			result = path(bencode, props, &tracker, port_end);
 			if (result != PARSE_SUCCESS) return result;
 
-			printf("Tracker: %d\n\tProtocol: %s\n\tHostname: %s\n\tPort: %s\n\tPath: %s\n", tracker, props->protocol, props->hostname, props->port, props->path);
+			//printf("Tracker: %d\n\tProtocol: %s\n\tHostname: %s\n\tPort: %s\n\tPath: %s\n", tracker, props->protocol, props->hostname, props->port, props->path);
 
-			/* Check for existence/accessibility of tracker */
-			testTracker(server, props->hostname);
-		}
+
+			if (strcmp(props->protocol, "udp") == 0) {
 			
-	} else {
+				long long int protocol_id = 0x41727101980;
+				long int action = 0;
+			
+				int socket_fd;
+				unsigned int serverlen;
+				int n;	
+
+				long transaction_id = 0;
+				transaction_id = rand() & 0xff;
+				transaction_id |= (rand() & 0xff) << 8;
+				transaction_id |= (rand() & 0xff) << 16;
+				transaction_id |= (rand() & 0xff) << 24;
+
+				//printf("Transaction ID: %lu\n", transaction_id);
+
+				/* Opening a socket file descriptor */
+				socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+				if (socket_fd < 0) {
+					fprintf(stderr, "Error socket: %s\n", strerror(errno));
+				}
+		
+
+				char return_buffer[sizeof(char)*32];
+
+				
+	
+				char buffer[sizeof(long int)*4];
+				memcpy(&buffer[0], &protocol_id, sizeof(long int)*2);
+				memcpy(&buffer[sizeof(long int)*2], &action, sizeof(long int));
+				memcpy(&buffer[sizeof(long int)*3], &transaction_id, sizeof(long int));
+	
+				struct addrinfo hints;
+				struct addrinfo *result, *rp;
+				int sfd, s, j;
+				size_t len;
+				ssize_t nread;
+				char buf[500];
+
+				memset(&hints, 0, sizeof(struct addrinfo));
+    			hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+    			hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
+   		 		hints.ai_flags = 0;
+    			hints.ai_protocol = 0;          /* Any protocol */				
+
+				s = getaddrinfo(props->hostname, props->port, &hints, &result);
+				if (s != 0) {
+        			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+        			continue;
+    			}			
+
+				for (rp = result; rp != NULL; rp = rp->ai_next) {
+        			sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        			if (sfd == -1) continue;
+
+       			if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
+           			printf("Success! Trasaction ID: %lu\n", transaction_id);
+			 		break;                  /* Success */
+
+       			close(sfd);
+    		}
+
+   if (rp == NULL) {               /* No address succeeded */
+        fprintf(stderr, "Could not connect\n");
+        exit(EXIT_FAILURE);
+    }				
+
+	
+			}
+			/* Check for existence/accessibility of tracker */
+			//testTracker(server, props->hostname);
+			
+		}
 //		result = parseHostname(bencode->announce, &hostname_start, &hostname_end, &hostname);
 
 //		if (result == 1) {
@@ -214,10 +278,8 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 
 //		result = parsePort(bencode->announce, &hostname_end, &port_start, &port_end, &port);
 	}
-	
 	return 0;
 }
-
 
 int testTracker(struct hostent *server, char *hostname) {
 	server = gethostbyname(hostname);
