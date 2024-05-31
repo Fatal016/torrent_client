@@ -12,15 +12,13 @@
 #define FILE_PATH_SIZE 10
 #define URL_LIST_SIZE 1
 
-#define NOT_A_TYPE NULL
-#define BUFFER_EXCEEDED -1
-#define END_OF_TYPE 1
-
 struct bencode_module* parse_single(char *filepath, struct bencode_module* bencode) {
 
 	char file_char;
 	int result;
 	id type;
+	
+	FILE *file = fopen(filepath, "r");
 
 	/* Struct initialization */
 	bencode->buffer_size 			= BUFFER_SIZE;
@@ -29,8 +27,6 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 	bencode->file_path_size			= FILE_PATH_SIZE;
 	bencode->url_list_size			= URL_LIST_SIZE;
 	
-	FILE *file = fopen(filepath, "r");
-
 	/* Error checking for existence of file */
 	if (file == NULL) {
 		fprintf(stderr, "Error reading from file: File not found\n");

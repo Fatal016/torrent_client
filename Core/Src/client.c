@@ -1,3 +1,11 @@
+#if __BIG_ENDIAN__
+# define htonll(x) (x)
+# define ntohll(x) (x)
+#else
+# define htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+# define ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,8 +16,6 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <libwebsockets.h>
-
-
 
 #include "../Inc/bencode.h"
 #include "../Inc/client.h"
@@ -190,13 +196,7 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 			result = path(bencode, props, &tracker, port_end);
 			if (result != PARSE_SUCCESS) return result;
 
-			//printf("Tracker: %d\n\tProtocol: %s\n\tHostname: %s\n\tPort: %s\n\tPath: %s\n", tracker, props->protocol, props->hostname, props->port, props->path);
-
-
 			if (strcmp(props->protocol, "udp") == 0) {
-			
-				long long int protocol_id = 0x41727101980;
-				long int action = 0;
 			
 				int socket_fd;
 				unsigned int serverlen;
@@ -217,15 +217,16 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 				}
 		
 
-				char return_buffer[sizeof(char)*32];
+				char return_buffer[sizeof(char)*16];
+			
+				struct connect_request connect_packet = {
+					.protocol_id = htonll(0x41727101980),
+					.action = 0,
+					.transaction_id = htonl(transaction_id)
+				};
 
+				printf("Before %lx After: %lx\n", 0x41727101980, connect_packet.protocol_id);
 				
-	
-				char buffer[sizeof(long int)*4];
-				memcpy(&buffer[0], &protocol_id, sizeof(long int)*2);
-				memcpy(&buffer[sizeof(long int)*2], &action, sizeof(long int));
-				memcpy(&buffer[sizeof(long int)*3], &transaction_id, sizeof(long int));
-	
 				struct addrinfo hints;
 				struct addrinfo *result, *rp;
 				int sfd, s, j;
@@ -249,23 +250,55 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
         			sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         			if (sfd == -1) continue;
 
-       			if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
-           			printf("Success! Trasaction ID: %lu\n", transaction_id);
-			 		break;                  /* Success */
+       				if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
+           				printf("Success! Transaction ID: %u\n", connect_packet.transaction_id);
+			 			break;                  /* Success */
+					}
+       				close(sfd);
+    			}
 
-       			close(sfd);
-    		}
+				if (rp == NULL) {
+					fprintf(stderr, "Could not connect\n");
+					return -2;
+				}
 
-   if (rp == NULL) {               /* No address succeeded */
-        fprintf(stderr, "Could not connect\n");
-        exit(EXIT_FAILURE);
-    }				
+				freeaddrinfo(result);
 
-	
+
+				struct timeval timeout;
+    			timeout.tv_sec = 2;  // 5 seconds timeout
+    			timeout.tv_usec = 0;
+
+    			if (setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        			perror("setsockopt");
+        			close(sfd);
+        			continue;
+    			}
+
+				if (send(sfd, (void *)&connect_packet, sizeof(connect_packet), 0) != sizeof(connect_packet)) {
+					fprintf(stderr, "partial/failed write\n");
+					return -2;
+				}
+
+				nread = recv(sfd, return_buffer, sizeof(return_buffer), 0);
+        		if (nread == -1) {
+            		perror("read");
+					continue;
+        		}
+
+       			printf("Received %ld bytes: %s\n", (long) nread, return_buffer);
+				
+				struct connect_response response = {
+					.action = buffer_to_u32(&return_buffer),
+					.transaction_id = buffer_to_u32(&return_buffer + 4),
+					.connection_id = atoll(return_buffer) & 0xFFFFFFFF
+				};
+
+
+				printf("Response:\n\tAction: %u\n\tTransaction ID: %u\n\tConnection ID: %lu\n", response.action, response.transaction_id, response.connection_id);
+
+				exit(0);
 			}
-			/* Check for existence/accessibility of tracker */
-			//testTracker(server, props->hostname);
-			
 		}
 //		result = parseHostname(bencode->announce, &hostname_start, &hostname_end, &hostname);
 
@@ -280,6 +313,20 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 	}
 	return 0;
 }
+
+
+uint32_t buffer_to_u32(const unsigned char *buf) {
+	
+	uint32_t ret = 0;	
+
+	for (int i = 0; i < 4; i++) {
+		ret |= buf[i] << (8 * (3 - i));
+	}
+	
+	return ret;
+}
+
+
 
 int testTracker(struct hostent *server, char *hostname) {
 	server = gethostbyname(hostname);
