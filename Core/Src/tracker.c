@@ -49,9 +49,6 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 	
-//	hostname = (char *)malloc(HOSTNAME_SIZE * sizeof(char));
-//	port = (char *)malloc(PORT_SIZE * sizeof(char));
-	
 	char *filepath = argv[1];
 
 	struct bencode_module bencode = {
@@ -71,7 +68,6 @@ int main(int argc, char **argv) {
 	};
 	
 	parse_single(filepath, &bencode);
-
 
 	result = getTracker(&bencode, &server, &props);
 
@@ -287,12 +283,17 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
         		}
 
        			printf("Received %ld bytes: %s\n", (long) nread, return_buffer);
-				
+			
+
 				struct connect_response response = {
-					.action = buffer_to_u32(&return_buffer),
-					.transaction_id = buffer_to_u32(&return_buffer + 4),
-					.connection_id = atoll(return_buffer) & 0xFFFFFFFF
+					.action = malloc(sizeof(uint32_t)),
+					.transaction_id = malloc(sizeof(uint32_t)),
+					.connection_id = malloc(sizeof(uint64_t))
 				};
+	
+//				response.action = buffer_to_u32(&return_buffer),
+//				response.transaction_id = buffer_to_u32(&return_buffer + 4),
+//				response.connection_id = atoll(return_buffer) & 0xFFFFFFFF
 
 
 				printf("Response:\n\tAction: %u\n\tTransaction ID: %u\n\tConnection ID: %lu\n", response.action, response.transaction_id, response.connection_id);
@@ -315,12 +316,12 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 }
 
 
-uint32_t buffer_to_u32(const unsigned char *buf) {
+uint32_t buffer_to_u32(char *buf[16]) {
 	
 	uint32_t ret = 0;	
 
 	for (int i = 0; i < 4; i++) {
-		ret |= buf[i] << (8 * (3 - i));
+		ret |= *buf[i] << (8 * (3 - i));
 	}
 	
 	return ret;
