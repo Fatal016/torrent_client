@@ -1,24 +1,14 @@
-#if __BIG_ENDIAN__
-# define htonll(x) (x)
-# define ntohll(x) (x)
-#else
-# define htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
-# define ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-
-#include <pthread.h>
+#include <unistd.h>
 
 #include <netdb.h>
 #include <sys/socket.h>
-#include <libwebsockets.h>
 
 #include "../Inc/bencode.h"
-#include "../Inc/client.h"
+#include "../Inc/tracker.h"
 
 #define DEFAULT_PORT 6969
 #define HOSTNAME_SIZE 128
@@ -26,29 +16,17 @@
 
 #define BUFFER_SIZE 256
 
+/* One instance allocated per .torrent file/magnet */
+
 int main(int argc, char **argv) {
 	
 	int result;
-	struct hostent server;
-	//struct sockaddr_in server_addr;
-	//char buffer[BUFFER_SIZE];
-	//int n;
-	//int time_to_exit = 0;
-	//unsigned int serverlen;
-	//char hostname_start[256], hostname_end[256], port_start[256], port_end[256];
-	//char hostname[256], port[5];
-
-	struct tracker_properties props;
-	props.protocol = malloc(sizeof(char) * 128);
-	props.hostname = malloc(sizeof(char) * 128);
-	props.port = malloc(sizeof(char) * 128);
-	props.path = malloc(sizeof(char) * 128);
 
 	if (argc != 2) {
-		printf("passed wrong amount\n");
+		printf("**TEST CHECK**\npassed wrong amount\n");
 		exit(-1);
 	}
-	
+
 	char *filepath = argv[1];
 
 	struct bencode_module bencode = {
@@ -66,10 +44,22 @@ int main(int argc, char **argv) {
 		.file_path_index = 0,
 		.url_list_index = 0
 	};
-	
-	parse_single(filepath, &bencode);
 
-	result = getTracker(&bencode, &server, &props);
+	result = parse_single(filepath, &bencode);
+
+	if (result != 0) {
+		printf("Failed to parse file\n");
+		exit(-1);
+	}
+
+	struct tracker_properties props = {
+		.protocol 	= (char *)malloc(sizeof(char) * 255),
+		.hostname 	= (char *)malloc(sizeof(char) * 253),
+		.port 		= (char *)malloc(sizeof(char) * 5),
+		.path 		= (char *)malloc(sizeof(char) * 2048)
+	};
+	
+	result = getTracker(&bencode, &props);
 
 	if (result == 1) {
 		return 1;
@@ -78,93 +68,7 @@ int main(int argc, char **argv) {
 	}
 }
 
-
-int protocol(char *url, struct tracker_properties *props, char **end) 
-{
-	int protocol_index;
-	ptrdiff_t length = 0;
-	
-	char valid_protocols[3][5] = { 
-		"udp", 
-		"http", 
-		"https"
-	};
-	int len_protocols = 3;
-	
-	/* Capturing and error checking delimiter */	
-	*end = strstr(url, "://");
-	if (*end == NULL) return MALFORMED_PROTOCOL;
-
-	/* Determining length of protocol and storing in struct */
-	length = *end - url;	
-	strncpy(props->protocol, url, length);
-	props->protocol[length] = '\0';
-
-	/* Checking if valid protocol detected */
-	for (protocol_index = 0; protocol_index < len_protocols; protocol_index++) {
-		if (strcmp(props->protocol, valid_protocols[protocol_index]) == 0) {
-			break;
-		}
-	}
-	if (protocol_index == len_protocols) return INVALID_PROTOCOL;
-	
-	return PARSE_SUCCESS;
-}
-
-int hostname(struct bencode_module *bencode, struct tracker_properties *props, char *protocol_end, char **start, char **end) 
-{
-	ptrdiff_t length = 0;
-
-	/* Offset from protocol_end by length of delimiter */
-	*start = protocol_end + 3*sizeof(char);	
-	*end = strstr(*start, ":");
-	
-	/* If no port specified */
-	if (*end == NULL) {
-		//strncpy(props->hostname, "NULL\0", 5);
-		*end = strstr(*start, "/");
-
-		/* If no port or path is present */
-		if (*end == NULL) {
-			*end = *start + strlen(*start) - sizeof(char);
-		}
-	}
-	
-	length = *end - *start;
-	strncpy(props->hostname, *start, length);
-	props->hostname[length] = '\0';
-
-	return PARSE_SUCCESS;	
-}
-
-int port(struct bencode_module *bencode, struct tracker_properties *props, int *tracker, char *hostname_end, char **start, char **end)
-{
-	ptrdiff_t length;
-
-	*start = hostname_end + sizeof(char);
-	*end = strstr(*start, "/");
-	if (*end == NULL) {
-		*end = &bencode->announce_list[*tracker][strlen(bencode->announce_list[*tracker])];
-	}
-
-	length = *end - *start;
-	
-	strncpy(props->port, *start, length);
-	props->port[length] = '\0';
-
-	return PARSE_SUCCESS;
-}
-int path(struct bencode_module *bencode, struct tracker_properties *props, int *tracker, char *port_end)
-{
-	ptrdiff_t length;
-
-	length = &bencode->announce_list[*tracker][strlen(bencode->announce_list[*tracker])] - port_end;
-	strncpy(props->path, port_end, length);
-
-	return PARSE_SUCCESS;
-}
-
-int getTracker(struct bencode_module *bencode, struct hostent *server, struct tracker_properties *props) {
+int getTracker(struct bencode_module *bencode, struct tracker_properties *props) {
 	
 	int tracker, result;
 	
@@ -183,7 +87,7 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 			result = protocol(bencode->announce_list[tracker], props, &protocol_end);
 			if (result != PARSE_SUCCESS) return result;
 
-			result = hostname(bencode, props, protocol_end, &hostname_start, &hostname_end);			
+			result = hostname(props, protocol_end, &hostname_start, &hostname_end);			
 			if (result != PARSE_SUCCESS) return result;
 
 			result = port(bencode, props, &tracker, hostname_end, &port_start, &port_end);
@@ -195,14 +99,13 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 			if (strcmp(props->protocol, "udp") == 0) {
 			
 				int socket_fd;
-				unsigned int serverlen;
-				int n;	
 
-				long transaction_id = 0;
-				transaction_id = rand() & 0xff;
-				transaction_id |= (rand() & 0xff) << 8;
-				transaction_id |= (rand() & 0xff) << 16;
-				transaction_id |= (rand() & 0xff) << 24;
+				uint32_t transaction_id = rand();
+			//	uint32_t transaction_id = 0;
+			//	transaction_id = rand() & 0xff;
+			//	transaction_id |= (rand() & 0xff) << 8;
+			//	transaction_id |= (rand() & 0xff) << 16;
+			//	transaction_id |= (rand() & 0xff) << 24;
 
 				//printf("Transaction ID: %lu\n", transaction_id);
 
@@ -213,7 +116,7 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 				}
 		
 
-				char return_buffer[sizeof(char)*16];
+				char *return_buffer = (char *)malloc(sizeof(char)*16);
 			
 				struct connect_request connect_packet = {
 					.protocol_id = htonll(0x41727101980),
@@ -225,10 +128,8 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 				
 				struct addrinfo hints;
 				struct addrinfo *result, *rp;
-				int sfd, s, j;
-				size_t len;
+				int sfd, s;
 				ssize_t nread;
-				char buf[500];
 
 				memset(&hints, 0, sizeof(struct addrinfo));
     			hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
@@ -282,18 +183,15 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 					continue;
         		}
 
-       			printf("Received %ld bytes: %s\n", (long) nread, return_buffer);
+       		//	printf("Received %ld bytes: %s\n", (long) nread, return_buffer);
 			
 
 				struct connect_response response = {
-					.action = malloc(sizeof(uint32_t)),
-					.transaction_id = malloc(sizeof(uint32_t)),
-					.connection_id = malloc(sizeof(uint64_t))
+					.action = buffer_to_u32(&return_buffer),
+					.transaction_id = buffer_to_u32(&return_buffer + 4),
+					.connection_id = atoll(return_buffer) & 0xFFFFFFFF
 				};
 	
-//				response.action = buffer_to_u32(&return_buffer),
-//				response.transaction_id = buffer_to_u32(&return_buffer + 4),
-//				response.connection_id = atoll(return_buffer) & 0xFFFFFFFF
 
 
 				printf("Response:\n\tAction: %u\n\tTransaction ID: %u\n\tConnection ID: %lu\n", response.action, response.transaction_id, response.connection_id);
@@ -301,22 +199,12 @@ int getTracker(struct bencode_module *bencode, struct hostent *server, struct tr
 				exit(0);
 			}
 		}
-//		result = parseHostname(bencode->announce, &hostname_start, &hostname_end, &hostname);
-
-//		if (result == 1) {
-//			printf ("Error in parsing %s\n", bencode->announce);
-//			return 1;
-//		}
-
-//		testTracker(server, hostname);
-
-//		result = parsePort(bencode->announce, &hostname_end, &port_start, &port_end, &port);
 	}
 	return 0;
 }
 
 
-uint32_t buffer_to_u32(char *buf[16]) {
+uint32_t buffer_to_u32(char **buf) {
 	
 	uint32_t ret = 0;	
 
@@ -325,20 +213,4 @@ uint32_t buffer_to_u32(char *buf[16]) {
 	}
 	
 	return ret;
-}
-
-
-
-int testTracker(struct hostent *server, char *hostname) {
-	server = gethostbyname(hostname);
-
-	/* Should switch to prioritization of more trustworthy/valuable trackers */
-	if (server == NULL) {
-		printf("Server unavailable!\n");
-		fprintf(stderr, "ERROR! No such host!\n");
-		return 1;
-	} else {
-
-		return 0;
-	}
 }

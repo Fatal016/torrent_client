@@ -12,7 +12,7 @@
 #define FILE_PATH_SIZE 10
 #define URL_LIST_SIZE 1
 
-struct bencode_module* parse_single(char *filepath, struct bencode_module* bencode) {
+int parse_single(char *filepath, struct bencode_module* bencode) {
 
 	char file_char;
 	int result;
@@ -30,7 +30,7 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 	/* Error checking for existence of file */
 	if (file == NULL) {
 		fprintf(stderr, "Error reading from file: File not found\n");
-		return NULL;
+		return -1;
 	}
 
 	/* Checking first character of file for dictionary */	
@@ -40,7 +40,7 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 	/* Error checking for presence of dictionary */	
 	if (type != &dictionary) {
 		printf("Parse error: First character was not the beginning of a dictionary\n");
-		return NULL;
+		return -1;
 	}
 
 	/* Allocating buffer for reading in and evaluating file contents */
@@ -50,8 +50,7 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 	result = type(bencode, file);
 	
 	if (result == 0) {
-		printBencode(bencode);
-		return bencode;
+		return 0;
 	} else {
 		switch (result) {
 			case -1:
@@ -62,8 +61,7 @@ struct bencode_module* parse_single(char *filepath, struct bencode_module* benco
 				break;
 		}		
 
-		//printBencode(bencode);
-		return NULL;
+		return -1;
 	}
 }
 

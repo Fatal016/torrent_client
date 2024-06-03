@@ -1,3 +1,6 @@
+#ifndef H_BENCODE
+#define H_BENCODE 	
+
 #define NOT_A_TYPE NULL
 #define BUFFER_EXCEEDED -1
 #define END_OF_TYPE 1
@@ -89,7 +92,7 @@ int integer(struct bencode_module*, FILE*);
 int end(struct bencode_module* __attribute__((unused)), FILE* __attribute__((unused)));
 
 /* Root function for parsing .torrent file */
-struct bencode_module* parse_single(char*, struct bencode_module*);
+int parse_single(char*, struct bencode_module*);
 
 int verify_int(char*, long long int*);
 
@@ -97,3 +100,5 @@ int verify_int(char*, long long int*);
 
 /* Tools */
 void printBencode(struct bencode_module *bencode);
+
+#endif

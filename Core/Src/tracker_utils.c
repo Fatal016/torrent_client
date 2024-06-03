@@ -1,8 +1,45 @@
 #include <stdio.h>
 
 #include "../Inc/tracker_utils.h"
+#include "../Inc/tracker.h"
 
-int hostname(struct bencode_module *bencode, struct tracker_properties *props, char *protocol_end, char **start, char **end) 
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+
+int protocol(char *url, struct tracker_properties *props, char **end)
+{
+    int protocol_index;
+    ptrdiff_t length = 0;
+
+    char valid_protocols[3][5] = {
+        "udp",
+        "http",
+        "https"
+    };
+    int len_protocols = 3;
+
+    /* Capturing and error checking delimiter */
+    *end = strstr(url, "://");
+    if (*end == NULL) return MALFORMED_PROTOCOL;
+
+    /* Determining length of protocol and storing in struct */
+    length = *end - url;
+    strncpy(props->protocol, url, length);
+    props->protocol[length] = '\0';
+
+    /* Checking if valid protocol detected */
+    for (protocol_index = 0; protocol_index < len_protocols; protocol_index++) {
+        if (strcmp(props->protocol, valid_protocols[protocol_index]) == 0) {
+            break;
+        }
+    }
+    if (protocol_index == len_protocols) return INVALID_PROTOCOL;
+
+    return PARSE_SUCCESS;
+}
+
+int hostname(struct tracker_properties *props, char *protocol_end, char **start, char **end) 
 {
 	ptrdiff_t length = 0;
 

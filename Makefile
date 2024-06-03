@@ -3,11 +3,13 @@ CFLAGS = -Wall -g -Wextra -pedantic
 
 CC_SOURCES = \
 Core/Src/bencode.c \
-Core/Src/client.c
+Core/Src/tracker.c \
+Core/Src/tracker_utils.c
 
 HEADERS = \
 Core/Inc/bencode.h \
-Core/Inc/client.h
+Core/Inc/tracker.h \
+Core/Inc/tracker_utils.h
 
 EXECUTABLE = bencode
 
