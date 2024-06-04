@@ -17,6 +17,7 @@
 # define htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
 # define ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
 #endif
+
 struct connect_request {
 	uint64_t protocol_id;
 	uint32_t action;
@@ -31,6 +32,7 @@ struct connect_response {
 
 int getTracker(struct bencode_module*, struct tracker_properties*);
 
-uint32_t buffer_to_u32(char**);
+uint32_t buffer_to_u32(char*);
+uint64_t buffer_to_u64(char*);
 
 #endif
