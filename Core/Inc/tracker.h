@@ -30,6 +30,22 @@ struct connect_response {
 	uint64_t connection_id;
 } __attribute__((packed));
 
+struct announce_request {
+	uint64_t connection_id;
+	uint32_t action;
+	uint32_t transaction_id;
+	char info_hash[20];
+	char peer_id[20];
+	uint64_t downloaded;
+	uint64_t left;
+	uint64_t uploaded;
+	uint32_t event;
+	uint32_t ip_address;
+	uint32_t key;
+	uint32_t num_want;
+	uint16_t port;
+} __attribute__((packed));
+
 int getTracker(struct bencode_module*, struct tracker_properties*);
 
 uint32_t buffer_to_u32(char*);

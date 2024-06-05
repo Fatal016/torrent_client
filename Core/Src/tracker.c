@@ -47,6 +47,8 @@ int main(int argc, char **argv) {
 
 	result = parse_single(filepath, &bencode);
 
+	printBencode(&bencode);
+
 	if (result != 0) {
 		printf("Failed to parse file\n");
 		exit(-1);
@@ -118,7 +120,7 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 
 				char *return_buffer = (char *)malloc(sizeof(char)*16);
 			
-				struct connect_request connect_packet = {
+				struct connect_request connect_req = {
 					.protocol_id = htonll(0x41727101980),
 					.action = 0,
 					.transaction_id = htonl(transaction_id)
@@ -148,7 +150,7 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
         			if (sfd == -1) continue;
 
        				if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
-           				printf("Success! Transaction ID: %x\n", connect_packet.transaction_id);
+           				printf("Success! Transaction ID: %x\n", connect_req.transaction_id);
 			 			break;                  /* Success */
 					}
        				close(sfd);
@@ -174,7 +176,7 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 				
 
 
-				if (send(sfd, (void *)&connect_packet, sizeof(connect_packet), 0) != sizeof(connect_packet)) {
+				if (send(sfd, (void *)&connect_req, sizeof(connect_req), 0) != sizeof(connect_req)) {
 					fprintf(stderr, "partial/failed write\n");
 					return -2;
 				}
@@ -185,7 +187,7 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 					continue;
 				}
 					
-				struct connect_response response = {
+				struct connect_response connect_res = {
 					.action = buffer_to_u32(return_buffer),
 					.transaction_id = buffer_to_u32(return_buffer + 4),
 					.connection_id = buffer_to_u64(return_buffer + 8)
@@ -193,21 +195,27 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 	
 
 
-				printf("Response:\n\tAction: %x\n\tTransaction ID: %x\n\tConnection ID: %lx\n", response.action, htonl(response.transaction_id), htonll(response.connection_id));
+				printf("Response:\n\tAction: %x\n\tTransaction ID: %x\n\tConnection ID: %lx\n", connect_res.action, htonl(connect_res.transaction_id), htonll(connect_res.connection_id));
 
-				if (transaction_id == response.transaction_id) {
+				if (transaction_id == connect_res.transaction_id) {
 					printf("Transaction IDs match!\n");
 				} else {
 					printf("Transaction IDs do not match...\n");
 					continue;
 				}
 
-				if (response.action != 0) {
+				if (connect_res.action != 0) {
 					printf("Not action???\n");
 					continue;
 				}
 
-
+				
+				struct announce_request announce_req = {
+					.connection_id = connect_res.connection_id,
+					.action = 1,
+					.transaction_id = connect_res.transaction_id
+			//		.info_hash = 
+				};
 				
 
 				exit(0);
@@ -220,10 +228,10 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 uint32_t buffer_to_u32(char *buf) {
 	uint32_t ret = 0;	
     
-	ret = 	((uint32_t)buf[3] << 24) |
-            ((uint32_t)buf[2] << 16) |
-            ((uint32_t)buf[1] << 8)  |
-            ((uint32_t)buf[0]);
+	ret = 	((uint32_t)(uint8_t)buf[3] << 24) |
+            ((uint32_t)(uint8_t)buf[2] << 16) |
+            ((uint32_t)(uint8_t)buf[1] << 8)  |
+            ((uint32_t)(uint8_t)buf[0]);
     asm ("bswap %0" : "=r" (ret) : "0" (ret));
 	
 	return ret;
