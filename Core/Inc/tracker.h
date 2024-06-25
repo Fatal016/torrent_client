@@ -51,4 +51,7 @@ int getTracker(struct bencode_module*, struct tracker_properties*);
 uint32_t buffer_to_u32(char*);
 uint64_t buffer_to_u64(char*);
 
+void peer_id(char*);
+
+
 #endif

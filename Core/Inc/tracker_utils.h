@@ -5,9 +5,9 @@
 #define H_TRACKER_UTILS
 
 struct tracker_properties {
-    char *protocol;
-    char *hostname;
-    char *port;
+	char *protocol;
+	char *hostname;
+	char *port;
 	char *path;
 };
 

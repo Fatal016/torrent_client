@@ -80,10 +80,13 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 		type = identify(file_char);
 		
+		/* If the beginning of a bencode object is detected */
 		if (type != NULL) {
+
+			/* Running function associated with detected type */
 			result = type(bencode, file);
 
-			/* If end of the dictionary, return */
+			/* If received character for end of dictionary, return */
 			if (result == END_OF_TYPE) {
 				return PARSE_SUCCESS;
 			}
@@ -98,7 +101,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 				if (result != CONVERSION_SUCCESS) {
 					printf("Parse error: Length of data element could not be determined.\nPlease verify the integrity of your .torrent file.\n");
-                    return PARSE_FAILURE;
+					return PARSE_FAILURE;
 				}			
 
 				/* Expanding buffer to accomodate item length */
@@ -122,94 +125,7 @@ int dictionary(struct bencode_module *bencode, FILE *file) {
 
 				/* If member of struct to place data hasn't been set, we need to set it */
 				if (bencode->head_pointer == NULL) {
-
-					if (strcmp(bencode->buffer, "announce") == 0) {
-						
-						bencode->announce = (char *)malloc(BUFFER_SIZE * sizeof(char));
-						bencode->head_pointer = (void *)bencode->announce;
-					
-					} else if (strcmp(bencode->buffer, "announce-list") == 0) {
-				
-						bencode->announce_list = (char **)malloc(bencode->announce_list_size * sizeof(char *));
-						bencode->head_pointer = (void *)bencode->announce_list;
-						bencode->index_pointer = &bencode->announce_list_index;
-						bencode->size_pointer = &bencode->announce_list_size;
-					
-					} else if (strcmp(bencode->buffer, "comment") == 0) {
-						
-						bencode->comment = (char *)malloc(BUFFER_SIZE * sizeof(char));
-						bencode->head_pointer = (void *)bencode->comment;
-					
-					} else if (strcmp(bencode->buffer, "created by") == 0) {
-							
-						bencode->created_by = (char *)malloc(BUFFER_SIZE * sizeof(char));
-						bencode->head_pointer = (void *)bencode->created_by;
-					
-					} else if (strcmp(bencode->buffer, "creation date") == 0) {
-							
-						bencode->creation_date = (long long int *)malloc(sizeof(long long int));
-						bencode->head_pointer = (void *)bencode->creation_date;
-
-					} else if (strcmp(bencode->buffer, "encoding") == 0) {
-						
-						bencode->encoding = (char *)malloc(BUFFER_SIZE * sizeof(char));
-						bencode->head_pointer = (void *)bencode->encoding;
-						
-					} else if (strcmp(bencode->buffer, "info") == 0) {
-							
-						bencode->info = (struct bencode_info *)malloc(sizeof(struct bencode_info));
-						bencode->head_pointer = NULL;
-
-					} else if (strcmp(bencode->buffer, "files") == 0) {
-							
-						bencode->info->files = (struct info_file **)malloc(bencode->info_file_size * sizeof(struct info_file *));
-
-					} else if (strcmp(bencode->buffer, "length") == 0) {
-							
-						if (bencode->info->files != NULL) {
-							/* Multi-file contents */
-							bencode->info->files[bencode->info_file_index] = (struct info_file *)malloc(sizeof(struct info_file *));
-							bencode->info->files[bencode->info_file_index]->length = (unsigned long int *)malloc(sizeof(unsigned long int));
-							bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->length;
-						} else {
-							/* Single file contents */
-							bencode->info->length = (long long int *)malloc(sizeof(long long int));
-							bencode->head_pointer= (void *)bencode->info->length;
-						}						
-
-					} else if (strcmp(bencode->buffer, "path") == 0) {
-						
-						bencode->info->files[bencode->info_file_index]->file_path_index = 0;
-						bencode->info->files[bencode->info_file_index]->path = (char **)malloc(bencode->file_path_size * sizeof(char *));
-						bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->path;
-						bencode->index_pointer = &bencode->info->files[bencode->info_file_index]->file_path_index;
-						bencode->info_file_index++;
-
-					} else if (strcmp(bencode->buffer, "name") == 0) {
-							
-						bencode->info->name = (char *)malloc(BUFFER_SIZE * sizeof(char));
-						bencode->head_pointer = (void *)bencode->info->name;
-						
-					} else if (strcmp(bencode->buffer, "piece length") == 0) {
-						
-						bencode->info->piece_length = (long long int *)malloc(sizeof(long long int));
-						bencode->head_pointer = (void *)bencode->info->piece_length;
-						
-					} else if (strcmp(bencode->buffer, "pieces") == 0) {
-							
-						bencode->info->pieces = (char *)malloc(*bencode->info->piece_length * sizeof(char));
-						bencode->head_pointer = (void *)bencode->info->pieces;
-						
-					} else if (strcmp(bencode->buffer, "url-list") == 0) {
-							
-						bencode->url_list = (char **)malloc(bencode->url_list_size * sizeof(char *));
-						bencode->head_pointer = (void *)bencode->url_list;
-						bencode->index_pointer = &bencode->url_list_index;
-					
-					} else {
-						/* Setting pointer to effective NULL value to then have unexpected key-value pairs ignored */
-						bencode->head_pointer = (void *)IGNORE_FLAG;	
-					}
+					parse_key(bencode);
 				} else {
 				
 					/* If not looking for key, store buffer as value */
@@ -344,14 +260,14 @@ int verify_int(char *input, long long int *output) {
 	errno = 0;
 
 	/* Performing strtoull on string and then checking errno and output buffers to check if valid integer */
-    val = strtoull(input, NULL, 10);
-    if ((errno == ERANGE && (val == LLONG_MAX || val == LLONG_MIN)) || (errno != 0 && val == 0)) {
+	val = strtoull(input, NULL, 10);
+	if ((errno == ERANGE && (val == LLONG_MAX || val == LLONG_MIN)) || (errno != 0 && val == 0)) {
 		perror("strtol");
-        return CONVERSION_FAILED;
-   	}
+		return CONVERSION_FAILED;
+	}
 
 	/* Setting value of second parameter to parsed value of integer */
-    *(long long int *)output = val;
+	*(long long int *)output = val;
 
 	return CONVERSION_SUCCESS;
 }
@@ -360,50 +276,141 @@ int end(struct bencode_module *bencode __attribute__((unused)), FILE *file __att
 	return END_OF_TYPE;
 }
 
+void parse_key(struct bencode_module *bencode) {
+	if (strcmp(bencode->buffer, "announce") == 0) {
+		
+		bencode->announce = (char *)malloc(BUFFER_SIZE * sizeof(char));
+		bencode->head_pointer = (void *)bencode->announce;
+	
+	} else if (strcmp(bencode->buffer, "announce-list") == 0) {
+
+		bencode->announce_list = (char **)malloc(bencode->announce_list_size * sizeof(char *));
+		bencode->head_pointer = (void *)bencode->announce_list;
+		bencode->index_pointer = &bencode->announce_list_index;
+		bencode->size_pointer = &bencode->announce_list_size;
+	
+	} else if (strcmp(bencode->buffer, "comment") == 0) {
+		
+		bencode->comment = (char *)malloc(BUFFER_SIZE * sizeof(char));
+		bencode->head_pointer = (void *)bencode->comment;
+	
+	} else if (strcmp(bencode->buffer, "created by") == 0) {
+			
+		bencode->created_by = (char *)malloc(BUFFER_SIZE * sizeof(char));
+		bencode->head_pointer = (void *)bencode->created_by;
+	
+	} else if (strcmp(bencode->buffer, "creation date") == 0) {
+			
+		bencode->creation_date = (long long int *)malloc(sizeof(long long int));
+		bencode->head_pointer = (void *)bencode->creation_date;
+
+	} else if (strcmp(bencode->buffer, "encoding") == 0) {
+		
+		bencode->encoding = (char *)malloc(BUFFER_SIZE * sizeof(char));
+		bencode->head_pointer = (void *)bencode->encoding;
+		
+	} else if (strcmp(bencode->buffer, "info") == 0) {
+			
+		bencode->info = (struct bencode_info *)malloc(sizeof(struct bencode_info));
+		bencode->head_pointer = NULL;
+
+	} else if (strcmp(bencode->buffer, "files") == 0) {
+			
+		bencode->info->files = (struct info_file **)malloc(bencode->info_file_size * sizeof(struct info_file *));
+
+	} else if (strcmp(bencode->buffer, "length") == 0) {
+			
+		if (bencode->info->files != NULL) {
+			/* Multi-file contents */
+			bencode->info->files[bencode->info_file_index] = (struct info_file *)malloc(sizeof(struct info_file *));
+			bencode->info->files[bencode->info_file_index]->length = (unsigned long int *)malloc(sizeof(unsigned long int));
+			bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->length;
+		} else {
+			/* Single file contents */
+			bencode->info->length = (long long int *)malloc(sizeof(long long int));
+			bencode->head_pointer= (void *)bencode->info->length;
+		}						
+
+	} else if (strcmp(bencode->buffer, "path") == 0) {
+		
+		bencode->info->files[bencode->info_file_index]->file_path_index = 0;
+		bencode->info->files[bencode->info_file_index]->path = (char **)malloc(bencode->file_path_size * sizeof(char *));
+		bencode->head_pointer = (void *)bencode->info->files[bencode->info_file_index]->path;
+		bencode->index_pointer = &bencode->info->files[bencode->info_file_index]->file_path_index;
+		bencode->info_file_index++;
+
+	} else if (strcmp(bencode->buffer, "name") == 0) {
+			
+		bencode->info->name = (char *)malloc(BUFFER_SIZE * sizeof(char));
+		bencode->head_pointer = (void *)bencode->info->name;
+		
+	} else if (strcmp(bencode->buffer, "piece length") == 0) {
+		
+		bencode->info->piece_length = (long long int *)malloc(sizeof(long long int));
+		bencode->head_pointer = (void *)bencode->info->piece_length;
+		
+	} else if (strcmp(bencode->buffer, "pieces") == 0) {
+			
+		bencode->info->pieces = (char *)malloc(*bencode->info->piece_length * sizeof(char));
+		bencode->head_pointer = (void *)bencode->info->pieces;
+		
+	} else if (strcmp(bencode->buffer, "url-list") == 0) {
+			
+		bencode->url_list = (char **)malloc(bencode->url_list_size * sizeof(char *));
+		bencode->head_pointer = (void *)bencode->url_list;
+		bencode->index_pointer = &bencode->url_list_index;
+	
+	} else {
+		/* Setting pointer to effective NULL value to then have unexpected key-value pairs ignored */
+		bencode->head_pointer = (void *)IGNORE_FLAG;	
+	}
+}
+
+
 id identify(char c) {
-    switch (c) {
-        case 'd':
-            return dictionary;
-            break;
-        case 'l':
-            return list;
-            break;
-        case 'i':
-            return integer;
-            break;
-        case 'e':
-            return end;
-            break;
-        default:
-            return NOT_A_TYPE;
-            break;
-    }
+	switch (c) {
+		case 'd':
+			return dictionary;
+			break;
+		case 'l':
+			return list;
+			break;
+		case 'i':
+			return integer;
+			break;
+		case 'e':
+			return end;
+			break;
+		default:
+			return NOT_A_TYPE;
+			break;
+	}
 }
 
 
 void printBencode(struct bencode_module *bencode) {
-    printf("Announce: %s\n\n", bencode->announce);
-    for (int i = 0; i < bencode->announce_list_index; i++) {
-        printf("Announce-List %d: %s\n", i, bencode->announce_list[i]);
-    }
-    if (bencode->comment != NULL) printf("\nComment: %s\n", bencode->comment);
-    if (bencode->created_by != NULL) printf("Created By: %s\n", bencode->created_by);
-    if (bencode->creation_date != NULL) printf("Creation Date: %lld\n", *bencode->creation_date);
-    if (bencode->encoding != NULL) printf("Encoding: %s\n\n", bencode->encoding);
-    for (int i = 0; i < bencode->info_file_index; i++) {
-        printf("Info File: %d\n\tLength: %ld\n\tPath: ", i, *bencode->info->files[i]->length);
+	printf("Announce: %s\n\n", bencode->announce);
+	for (int i = 0; i < bencode->announce_list_index; i++) {
+		printf("Announce-List %d: %s\n", i, bencode->announce_list[i]);
+	}
+	if (bencode->comment != NULL) printf("\nComment: %s\n", bencode->comment);
+	if (bencode->created_by != NULL) printf("Created By: %s\n", bencode->created_by);
+	if (bencode->creation_date != NULL) printf("Creation Date: %lld\n", *bencode->creation_date);
+	if (bencode->encoding != NULL) printf("Encoding: %s\n\n", bencode->encoding);
+	for (int i = 0; i < bencode->info_file_index; i++) {
+		printf("Info File: %d\n\tLength: %ld\n\tPath: ", i, *bencode->info->files[i]->length);
 		for (int j = 0; j < bencode->info->files[i]->file_path_index; j++) {
-            printf("/%s", bencode->info->files[i]->path[j]);
-        }
+			printf("/%s", bencode->info->files[i]->path[j]);
+		}
 		printf("\n\n");
-    }
-    if (bencode->info->name != NULL) printf("\nName: %s\n", bencode->info->name);
-    if (bencode->info->piece_length != NULL) printf("Piece Length: %lld\n", *bencode->info->piece_length);
-    if (bencode->info->pieces != NULL) printf("Pieces: %s\n\n", bencode->info->pieces);
-    
+	}
+	if (bencode->info->name != NULL) printf("\nName: %s\n", bencode->info->name);
+	if (bencode->info->piece_length != NULL) printf("Piece Length: %lld\n", *bencode->info->piece_length);
+	if (bencode->info->pieces != NULL) printf("Pieces: %s\n\n", bencode->info->pieces);
+
 	if (bencode->url_list != NULL) {
 		for (int i = 0; i < bencode->url_list_index; i++) {
-       		printf("Url List %d: %s\n", i, bencode->url_list[i]);
-    	}
+			printf("Url List %d: %s\n", i, bencode->url_list[i]);
+		}
 	}
 }

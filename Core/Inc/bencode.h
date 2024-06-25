@@ -70,7 +70,7 @@ struct bencode_module {
 	int* size_pointer;
 
 	
-    /************************/
+	/************************/
 	/*** Other Parameters ***/
 	/************************/
 
@@ -94,8 +94,10 @@ int end(struct bencode_module* __attribute__((unused)), FILE* __attribute__((unu
 /* Root function for parsing .torrent file */
 int parse_single(char*, struct bencode_module*);
 
-int verify_int(char*, long long int*);
 
+/* Helper Functions */
+void parse_key(struct bencode_module*);
+int verify_int(char*, long long int*);
 
 
 /* Tools */

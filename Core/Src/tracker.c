@@ -30,19 +30,19 @@ int main(int argc, char **argv) {
 	char *filepath = argv[1];
 
 	struct bencode_module bencode = {
-		.announce = NULL,
-		.announce_list = NULL,
-		.comment = NULL,
-		.created_by = NULL,
-		.encoding = NULL,
-		.info = NULL,
-		.url_list = NULL,
-		.head_pointer = NULL,
-		.size_pointer = NULL,
-		.announce_list_index = 0,
-		.info_file_index = 0,
-		.file_path_index = 0,
-		.url_list_index = 0
+		.announce 				= NULL,
+		.announce_list 			= NULL,
+		.comment 				= NULL,
+		.created_by 			= NULL,
+		.encoding 				= NULL,
+		.info 					= NULL,
+		.url_list 				= NULL,
+		.head_pointer 			= NULL,
+		.size_pointer 			= NULL,
+		.announce_list_index 	= 0,
+		.info_file_index 		= 0,
+		.file_path_index 		= 0,
+		.url_list_index 		= 0
 	};
 
 	result = parse_single(filepath, &bencode);
@@ -134,27 +134,27 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 				ssize_t nread;
 
 				memset(&hints, 0, sizeof(struct addrinfo));
-    			hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
-    			hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
-   		 		hints.ai_flags = 0;
-    			hints.ai_protocol = 0;          /* Any protocol */				
+				hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+				hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
+		 		hints.ai_flags = 0;
+				hints.ai_protocol = 0;          /* Any protocol */				
 
 				s = getaddrinfo(props->hostname, props->port, &hints, &result);
 				if (s != 0) {
-        			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
-        			continue;
-    			}			
+					fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+				continue;
+				}			
 
 				for (rp = result; rp != NULL; rp = rp->ai_next) {
-        			sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        			if (sfd == -1) continue;
+					sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+					if (sfd == -1) continue;
 
-       				if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
-           				printf("Success! Transaction ID: %x\n", connect_req.transaction_id);
+					if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
+						printf("Success! Transaction ID: %x\n", connect_req.transaction_id);
 			 			break;                  /* Success */
 					}
-       				close(sfd);
-    			}
+				close(sfd);
+				}
 
 				if (rp == NULL) {
 					fprintf(stderr, "Could not connect\n");
@@ -165,14 +165,14 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 
 
 				struct timeval timeout;
-    			timeout.tv_sec = 2;  // 5 seconds timeout
-    			timeout.tv_usec = 0;
+				timeout.tv_sec = 2;  // 5 seconds timeout
+				timeout.tv_usec = 0;
 
-    			if (setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-        			perror("setsockopt");
-        			close(sfd);
-        			continue;
-    			}
+				if (setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+					perror("setsockopt");
+					close(sfd);
+					continue;
+				}
 				
 
 
@@ -209,15 +209,29 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 					continue;
 				}
 
-				
+
+
+
+				char peer_id[20];
+//				peer_id(&peer_id);
+/*				
 				struct announce_request announce_req = {
 					.connection_id = connect_res.connection_id,
 					.action = 1,
-					.transaction_id = connect_res.transaction_id
-			//		.info_hash = 
+					.transaction_id = connect_res.transaction_id,
+					.info_hash = argv[1],
+					.peer_id = peer_id,
+					.downloaded = 0,
+					.left = 
 				};
 				
+				if (send(sfd, (void *)&announce_req, sizeof(announce_req), 0) != sizeof(announce_req)) {
+					fprintf(stderr, "partial/failed write\n");
+					return -2;
+				}
 
+				nread = recv(sfd, return_buffer, )
+*/
 				exit(0);
 			}
 		}
@@ -227,18 +241,18 @@ int getTracker(struct bencode_module *bencode, struct tracker_properties *props)
 
 uint32_t buffer_to_u32(char *buf) {
 	uint32_t ret = 0;	
-    
+
 	ret = 	((uint32_t)(uint8_t)buf[3] << 24) |
-            ((uint32_t)(uint8_t)buf[2] << 16) |
-            ((uint32_t)(uint8_t)buf[1] << 8)  |
-            ((uint32_t)(uint8_t)buf[0]);
-    asm ("bswap %0" : "=r" (ret) : "0" (ret));
+			((uint32_t)(uint8_t)buf[2] << 16) |
+			((uint32_t)(uint8_t)buf[1] << 8)  |
+			((uint32_t)(uint8_t)buf[0]);
+	asm ("bswap %0" : "=r" (ret) : "0" (ret));
 	
 	return ret;
 }
 
 uint64_t buffer_to_u64(char *buf) {
-    uint64_t ret = 0;
+	uint64_t ret = 0;
 
 	ret =	((uint64_t)(uint8_t)buf[7] << 56) |
 			((uint64_t)(uint8_t)buf[6] << 48) |
@@ -250,5 +264,15 @@ uint64_t buffer_to_u64(char *buf) {
 			((uint64_t)(uint8_t)buf[0]);
 	asm ("bswap %0" : "=r" (ret) : "0" (ret));
 
-    return ret;
+	return ret;
 }
+/*
+void peer_id(char *buf) {
+	const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	for (size_t i = 0; i < 20; i++) {
+		int key = rand() % (int)(sizeof(charset) - 1);
+		buf[i] = charset[key];
+	}
+	buf[length] = '\0';
+}
+*/
